@@ -9,8 +9,12 @@ __pycache__/
 
 # Ignore AWS & credential files
 credentials
-aws_secret.txt
+**/*secret*
 
 # Ignore OS junk
 .DS_Store
 Thumbs.db
+
+# my Notes
+notes.txt
+
