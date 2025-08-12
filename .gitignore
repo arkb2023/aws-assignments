@@ -1,0 +1,16 @@
+# Ignore Python venvs
+venv/
+.venv/
+*.pyc
+__pycache__/
+
+# Ignore environment variable files
+*.env
+
+# Ignore AWS & credential files
+credentials
+aws_secret.txt
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
