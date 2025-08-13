@@ -1,4 +1,21 @@
 ## 1) Create 4 IAM users named “Dev1”, “Dev2”, “Test1”, and "Test2" 
+## 
+## Prerequisites
+```
+$ export define...
+$ export DEV1_USER="Dev1"
+$ export DEV2_USER="Dev2"
+$ export TEST1_USER="Test1"
+$ export TEST2_USER="Test2"
+
+$ export DEV2_PASSWORD=<set-value>
+$ export DEV2_PASSWORD=<set-value>
+$ export TEST1_PASSWORD=<set-value>
+$ export TEST2_PASSWORD=<set-value>
+
+$ export DEV_TEAM_GROUP="DevTeamGroup"
+$ export OPS_TEAM_GROUP="OpsTeamGroup"
+```
 **Create Dev1 User**
 ```
  $ aws iam create-user --user-name $DEV1_USER
