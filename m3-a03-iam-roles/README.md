@@ -129,7 +129,6 @@ $ aws iam create-role --role-name ${VPC_DYNDB_ACCESS_ROLE_NAME} \
     }
 }    
 ```
-Kane
 ## Attach the Policy to the Role
 ```
 $ aws iam attach-role-policy --role-name ${VPC_DYNDB_ACCESS_ROLE_NAME} \

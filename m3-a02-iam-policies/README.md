@@ -1,7 +1,10 @@
 ## 1. Create policy number 1 which lets the users to:
 **a. Access S3 completely**
+
 **b. Only create EC2 instances**
+
 **c. Full access to RDS**
+
 <!-- Use https://awspolicygen.s3.amazonaws.com/policygen.html to generate json formatted polcy -->
 ```
 {
@@ -31,6 +34,7 @@
 }
 ```
 ```
+# Set POLICY_NUMBER1 env variable
   $ aws iam create-policy --policy-name $POLICY_NUMBER1 --policy-document file://policy1.json
 {
     "Policy": {
