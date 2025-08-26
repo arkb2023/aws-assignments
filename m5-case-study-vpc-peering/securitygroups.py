@@ -31,7 +31,7 @@ def create_security_group(ec2_client, vpc_id, name, description, inbound_rules):
         GroupId=sg_id,
         IpPermissions=ip_permissions
     )
-    print(f"Ingress rules set for {name}")
+    #print(f"Ingress rules set for {name}")
     return sg_id
 
 def main():

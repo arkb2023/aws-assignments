@@ -5,6 +5,7 @@ import json
 import os
 
 region = 'us-west-2'  # Oregon, for sandbox/testing
+AvailabilityZone='us-west-2a'
 
 def init_ec2(region='us-west-2'):
     ec2 = boto3.resource('ec2', region_name=region)
@@ -29,6 +30,7 @@ def create_internet_gateway(ec2, vpc, name='m04VpcInternetGateway'):
 def create_subnet(vpc, cidr, name):
     subnet = vpc.create_subnet(
         CidrBlock=cidr,
+        AvailabilityZone='us-west-2a',
         TagSpecifications=[{
             'ResourceType': 'subnet',
             'Tags': [{'Key': 'Name', 'Value': name}]
@@ -142,8 +144,8 @@ def cleanup_vpc(ec2, vpc_id):
 def create_resources(output_file='vpc_resources.json'):
     ec2, ec2_client = init_ec2()
 
-    vpc = create_vpc(ec2)
-    igw = create_internet_gateway(ec2, vpc)
+    vpc = create_vpc(ec2, name='vpc-production-network')
+    igw = create_internet_gateway(ec2, vpc, name='igw-production-network')
 
     private_subnet = create_subnet(vpc, '10.10.2.0/24', 'app1')
     public_subnet = create_subnet(vpc, '10.10.1.0/24', 'web')

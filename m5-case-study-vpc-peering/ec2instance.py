@@ -8,10 +8,12 @@ import os
 def get_latest_amazon_linux_ami(region):
     ssm = boto3.client('ssm', region_name=region)
     response = ssm.get_parameter(Name='/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs')
+    
     return response['Parameter']['Value']
 
 def create_instance(ec2, subnet_id, sg_ids, key_name, instance_type, name, associate_public_ip):
     ami_id = get_latest_amazon_linux_ami(ec2.meta.client.meta.region_name)
+    #ami_id = "ami-022552c8354f3cb14"
 
     instances = ec2.create_instances(
         ImageId=ami_id,
