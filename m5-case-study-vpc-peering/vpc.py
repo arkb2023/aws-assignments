@@ -3,9 +3,23 @@ import traceback
 import argparse
 import json
 import os
+import sys
 
 region = 'us-west-2'  # Oregon, for sandbox/testing
 AvailabilityZone='us-west-2a'
+
+# Production network values
+PROD_NET_VPC_CIDR='10.10.0.0/16'
+PROD_NET_VPC_PUBLIC_WEBSUBNET='10.10.1.0/24'
+PROD_NET_VPC_PVT_APP1SUBNET='10.10.2.0/24'
+PROD_NET_VPC_PVT_APP2SUBNET='10.10.3.0/24'
+PROD_NET_VPC_PVT_DBCACHESUBNET='10.10.4.0/24'
+PROD_NET_VPC_PVT_DBSUBNET='10.10.5.0/24'
+
+# Development network values
+DEV_NET_VPC_CIDR='10.20.0.0/16'
+DEV_NET_VPC_PUBLIC_WEBSUBNET='10.20.1.0/24'
+DEV_NET_VPC_PVT_DBSUBNET='10.20.2.0/24'
 
 def init_ec2(region='us-west-2'):
     ec2 = boto3.resource('ec2', region_name=region)
@@ -27,10 +41,10 @@ def create_internet_gateway(ec2, vpc, name='m04VpcInternetGateway'):
     print(f"Created and attached IGW {igw.id} to VPC {vpc.id}")
     return igw
 
-def create_subnet(vpc, cidr, name):
+def create_subnet(vpc, cidr, name, az):
     subnet = vpc.create_subnet(
         CidrBlock=cidr,
-        AvailabilityZone='us-west-2a',
+        AvailabilityZone=az,
         TagSpecifications=[{
             'ResourceType': 'subnet',
             'Tags': [{'Key': 'Name', 'Value': name}]
@@ -141,52 +155,187 @@ def cleanup_vpc(ec2, vpc_id):
     except Exception as e:
         print(f"Error deleting VPC {vpc_id}: {e}")
 
-def create_resources(output_file='vpc_resources.json'):
+def save_resource_file(new_resources, resource_type="undef", output_file='vpc_resources.json'):
+    # Load existing data if file exists
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as f:
+            try:
+                existing_data = json.load(f)
+            except json.JSONDecodeError:
+                existing_data = {}
+    else:
+        existing_data = {}
+
+    # Update existing data with new resources (e.g., 'pnet_*' or 'dnet_*' keys)
+    existing_data.update(new_resources)
+
+    # Write back the merged JSON data
+    with open(output_file, 'w') as f:
+        json.dump(existing_data, f, indent=2)
+    print(f"Merged and saved {resource_type} resource info to {output_file}")
+
+
+def xxsave_resource_file(instances_dict, resource_type="undef", filename='noname.json'):
+    if os.path.exists(filename):
+        with open(filename, 'a') as f:
+            json.dump(instances_dict, f, indent=2)
+        print(f"Appended {resource_type} resource info to {filename}")
+    else:
+        with open(filename, 'w') as f:
+            json.dump(instances_dict, f, indent=2)
+        print(f"Saved {resource_type} resource info to {filename}")
+
+def create_peering(ec2_client, prod_vpc_id, dev_vpc_id):
+    # 1. Create peering request
+    response = ec2_client.create_vpc_peering_connection(VpcId=prod_vpc_id, PeerVpcId=dev_vpc_id)
+    peering_id = response['VpcPeeringConnection']['VpcPeeringConnectionId']
+    print(f"Created peering request: {peering_id}")
+    
+    # 2. Accept peering request
+    ec2_client.accept_vpc_peering_connection(VpcPeeringConnectionId=peering_id)
+    print("Accepted peering connection.")
+    return peering_id
+
+def add_peering_routes(ec2_client, route_table_id, destination_cidr, peering_id):
+    ec2_client.create_route(
+        RouteTableId=route_table_id,
+        DestinationCidrBlock=destination_cidr,
+        VpcPeeringConnectionId=peering_id,
+    )
+    print(f"Added route to {destination_cidr} via peering connection {peering_id}")
+
+def create_resources(network, output_file='vpc_resources.json', skip_expensive=False):
     ec2, ec2_client = init_ec2()
 
-    vpc = create_vpc(ec2, name='vpc-production-network')
-    igw = create_internet_gateway(ec2, vpc, name='igw-production-network')
+    resources_data = {}
+    if network == 'prod':
+        # VPC - Production Network
+        # -------------------------
+        pnet_vpc = create_vpc(ec2, cidr=PROD_NET_VPC_CIDR, name='vpc-production-network')
+        pnet_igw = create_internet_gateway(ec2, pnet_vpc, name='igw-production-network')
 
-    private_subnet = create_subnet(vpc, '10.10.2.0/24', 'app1')
-    public_subnet = create_subnet(vpc, '10.10.1.0/24', 'web')
+        pnet_pub_websubnet = create_subnet(pnet_vpc, PROD_NET_VPC_PUBLIC_WEBSUBNET, 'prod-net-pub-websubnet', 'us-west-2a')
+        pnet_pvt_app1subnet = create_subnet(pnet_vpc, PROD_NET_VPC_PVT_APP1SUBNET, 'prod-net-pvt-app1subnet', 'us-west-2a')
+        pnet_pvt_app2subnet = create_subnet(pnet_vpc, PROD_NET_VPC_PVT_APP2SUBNET, 'prod-net-pvt-app2subnet', 'us-west-2a')
+        pnet_pvt_dbcachesubnet = create_subnet(pnet_vpc, PROD_NET_VPC_PVT_DBCACHESUBNET, 'prod-net-pvt-dbcachesubnet', 'us-west-2a')
+        pnet_pvt_dbsubnet = create_subnet(pnet_vpc, PROD_NET_VPC_PVT_DBSUBNET, 'prod-net-pvt-dbsubnet', 'us-west-2a')
 
-    eip_allocation_id = allocate_eip(ec2_client, "publicWebSubnetNatGW-EIP")
-    natgw_id = create_nat_gateway(ec2_client, public_subnet.id, eip_allocation_id)
+        # Set the flag to use NAT and EIP
+        if not skip_expensive:
+            pnet_eip_allocation_id = allocate_eip(ec2_client, "ProdNet-PublicWebSubnetNatGW-EIP")
+            pnet_natgw_id = create_nat_gateway(ec2_client, pnet_pub_websubnet.id, pnet_eip_allocation_id, name="natgw-production-network")
 
-    private_rt = create_route_table(vpc, 'privateApp1RouteTable')
-    associate_route_table(private_rt, private_subnet)
-    create_route(private_rt, '0.0.0.0/0', natgw_id=natgw_id)
+        # Create route tables for private subnets
+        pnet_pvt_app1subnet_rt = create_route_table(pnet_vpc, 'ProdNet-PvtApp1RouteTable')
+        associate_route_table(pnet_pvt_app1subnet_rt, pnet_pvt_app1subnet)
+        pnet_pvt_app2subnet_rt = create_route_table(pnet_vpc, 'ProdNet-PvtApp2RouteTable')
+        associate_route_table(pnet_pvt_app2subnet_rt, pnet_pvt_app2subnet)
+        pnet_pvt_dbcachesubnet_rt = create_route_table(pnet_vpc, 'ProdNet-PvtDBCacheRouteTable')
+        associate_route_table(pnet_pvt_dbcachesubnet_rt, pnet_pvt_dbcachesubnet)
+        pnet_pvt_dbsubnet_rt = create_route_table(pnet_vpc, 'ProdNet-PvtDBRouteTable')
+        associate_route_table(pnet_pvt_dbsubnet_rt, pnet_pvt_dbsubnet)
+        
+        # Set the flag to use NAT and EIP
+        if not skip_expensive:
+            # 4. Allow dbcache instance and app1 subnet to send internet requests.
+            # attach NAT GW
+            create_route(pnet_pvt_app1subnet_rt, '0.0.0.0/0', natgw_id=pnet_natgw_id)
+            create_route(pnet_pvt_dbcachesubnet_rt, '0.0.0.0/0', natgw_id=pnet_natgw_id)
 
-    public_rt = create_route_table(vpc, 'publicWebRouteTable')
-    associate_route_table(public_rt, public_subnet)
-    create_route(public_rt, '0.0.0.0/0', gateway_id=igw.id)
+        # Create route tables public subnet
+        pnet_pub_websubnet_rt = create_route_table(pnet_vpc, 'ProdNet-PublicWebRouteTable')
+        associate_route_table(pnet_pub_websubnet_rt, pnet_pub_websubnet)
+        # attach internet gateway to route internet traffic
+        create_route(pnet_pub_websubnet_rt, '0.0.0.0/0', gateway_id=pnet_igw.id)
 
-    print("\n--- Creation Summary ---")
-    print(f"VPC ID: {vpc.id}")
-    print(f"IGW ID: {igw.id}")
-    print(f"Private Subnet ID: {private_subnet.id}")
-    print(f"Public Subnet ID: {public_subnet.id}")
-    print(f"Elastic IP Allocation ID: {eip_allocation_id}")
-    print(f"NAT Gateway ID: {natgw_id}")
-    print(f"Private Route Table ID: {private_rt.id}")
-    print(f"Public Route Table ID: {public_rt.id}")
+        print("\n--- Production Network Resources Summary ---")
+        print(f"VPC ID: {pnet_vpc.id}")
+        print(f"IGW ID: {pnet_igw.id}")
+        print(f"Private Subnet ID: {pnet_pvt_app1subnet.id}")
+        print(f"Public Subnet ID: {pnet_pub_websubnet.id}")
+        # Set the flag to use NAT and EIP
+        if not skip_expensive:
+            print(f"Elastic IP Allocation ID: {pnet_eip_allocation_id}")
+            print(f"NAT Gateway ID: {pnet_natgw_id}")
+        else:
+            print("Test Mode: NAT GW configuration skipped!")
 
-    # Save resource IDs to file
-    resources_data = {
-        'vpc_id': vpc.id,
-        'igw_id': igw.id,
-        'private_subnet_id': private_subnet.id,
-        'public_subnet_id': public_subnet.id,
-        'eip_id': eip_allocation_id,
-        'natgw_id': natgw_id,
-        'private_rt_id': private_rt.id,
-        'public_rt_id': public_rt.id,
-    }
-    with open(output_file, 'w') as f:
-        json.dump(resources_data, f, indent=2)
-    print(f"\nResource IDs saved to {output_file}")
+        print(f"Public Web subnet route Table ID: {pnet_pub_websubnet_rt.id}")
+        print(f"Private App1 subnet route Table ID: {pnet_pvt_app1subnet_rt.id}")
+        print(f"Private App2 subnet route Table ID: {pnet_pvt_app2subnet_rt.id}")
+        print(f"Private DBCache subnet route Table ID: {pnet_pvt_dbcachesubnet_rt.id}")
+        print(f"Private DB subnet route Table ID: {pnet_pvt_dbsubnet_rt.id}")
 
-def cleanup_resources(args):
+        # Save resource IDs to file
+        resources_data = {
+            'pnet_vpc_id': pnet_vpc.id,
+            'pnet_igw_id': pnet_igw.id,
+            
+            'pnet_pub_websubnet_id': pnet_pub_websubnet.id,
+            'pnet_pvt_app1subnet_id': pnet_pvt_app1subnet.id,
+            'pnet_pvt_app2subnet_id': pnet_pvt_app2subnet.id,
+            'pnet_pvt_dbcachesubnet_id': pnet_pvt_dbcachesubnet.id,
+            'pnet_pvt_dbsubnet_id': pnet_pvt_dbsubnet.id,
+            
+            'pnet_pub_websubnet_rt_id': pnet_pub_websubnet_rt.id,
+            'pnet_pvt_app1subnet_rt_id': pnet_pvt_app1subnet_rt.id,
+            'pnet_pvt_app2subnet_rt_id': pnet_pvt_app2subnet_rt.id,
+            'pnet_pvt_dbcachesubnet_rt_id': pnet_pvt_dbcachesubnet_rt.id,
+            'pnet_pvt_dbsubnet_rt_id': pnet_pvt_dbsubnet_rt.id,
+        }
+        if not skip_expensive:
+            resources_data = {
+                'pnet_eip_id': pnet_eip_allocation_id,
+                'pnet_natgw_id': pnet_natgw_id,
+            }
+
+        save_resource_file(resources_data, resource_type="vpc-production-network", output_file=output_file)
+
+
+    if network == 'dev':
+        # VPC - Development Network
+        # -------------------------
+        dnet_vpc = create_vpc(ec2, cidr=DEV_NET_VPC_CIDR, name='vpc-development-network')
+        dnet_igw = create_internet_gateway(ec2, dnet_vpc, name='igw-development-network')
+
+        dnet_pub_websubnet = create_subnet(dnet_vpc, DEV_NET_VPC_PUBLIC_WEBSUBNET, 'dev-net-pub-websubnet', 'us-west-2b')
+        dnet_pvt_dbsubnet = create_subnet(dnet_vpc, DEV_NET_VPC_PVT_DBSUBNET, 'dev-net-pvt-dbsubnet', 'us-west-2b')
+
+
+        dnet_pvt_dbsubnet_rt = create_route_table(dnet_vpc, 'DevNet-PrivateApp1RouteTable')
+        associate_route_table(dnet_pvt_dbsubnet_rt, dnet_pvt_dbsubnet)
+
+        dnet_pub_websubnet_rt = create_route_table(dnet_vpc, 'DevNet-PublicWebRouteTable')
+        associate_route_table(dnet_pub_websubnet_rt, dnet_pub_websubnet)
+        create_route(dnet_pub_websubnet_rt, '0.0.0.0/0', gateway_id=dnet_igw.id)
+
+
+        print("\n--- Development Network Resources Summary ---")
+        print(f"VPC ID: {dnet_vpc.id}")
+        print(f"IGW ID: {dnet_igw.id}")
+        print(f"Public Web Subnet ID: {dnet_pub_websubnet.id}")
+        print(f"Private App1 Subnet ID: {dnet_pvt_dbsubnet.id}")
+        print(f"Public Web Subnet Route Table ID: {dnet_pub_websubnet_rt.id}")
+        print(f"Private App1 Subnet Route Table ID: {dnet_pvt_dbsubnet_rt.id}")
+
+        # Save resource IDs to file
+        # 'dnet_eip_id': dnet_eip_allocation_id,
+        #'dnet_natgw_id': dnet_natgw_id,
+        resources_data = {
+            'dnet_vpc_id': dnet_vpc.id,
+            'dnet_igw_id': dnet_igw.id,
+    
+            'dnet_pub_websubnet_id': dnet_pub_websubnet.id,
+            'dnet_pvt_dbsubnet_id': dnet_pvt_dbsubnet.id,
+    
+            'dnet_pub_websubnet_rt_id': dnet_pub_websubnet_rt.id,
+            'dnet_pvt_dbsubnet_rt_id': dnet_pvt_dbsubnet_rt.id,            
+        }
+        save_resource_file(resources_data, resource_type="vpc-development-network", output_file=output_file)
+
+
+
+def cleanup_resources(args, skip_expensive=False):
     ec2, ec2_client = init_ec2()
 
     # Load resource IDs from file if specified and file exists
@@ -195,62 +344,165 @@ def cleanup_resources(args):
         with open(args.resource_file, 'r') as f:
             resource_ids = json.load(f)
     else:
-        # Fallback: read from CLI args
-        resource_ids = {
-            'vpc_id': args.vpc_id,
-            'igw_id': args.igw_id,
-            'private_subnet_id': args.private_subnet_id,
-            'public_subnet_id': args.public_subnet_id,
-            'eip_id': args.eip_id,
-            'natgw_id': args.natgw_id,
-            'private_rt_id': args.private_rt_id,
-            'public_rt_id': args.public_rt_id,
-        }
+        if args.network == 'prod':
+            # Fallback: read from CLI args
+            resource_ids = {
+                'pnet_vpc_id': args.pnet_vpc_id,
+                'pnet_igw_id': args.pnet_igw_id,
+
+                'pnet_pub_websubnet_id': args.pnet_pub_websubnet_id,
+                'pnet_pvt_app1subnet_id': args.pnet_pvt_app1subnet_id,
+
+                'pnet_pub_websubnet_rt_id': args.pnet_pub_websubnet_rt_id,
+                'pnet_pvt_app1subnet_rt_id': args.pnet_pvt_app1subnet_rt_id,
+            }
+            # Set the flag to use NAT and EIP
+            if not skip_expensive:
+                resource_ids = {
+                    'pnet_eip_id': args.pnet_eip_id,
+                    'pnet_natgw_id': args.pnet_natgw_id,
+                }
+        if args.network == 'dev':
+            # 'dnet_eip_id': args.dnet_eip_id,
+            # 'dnet_natgw_id': args.dnet_natgw_id,
+            resource_ids = {
+                'dnet_vpc_id': args.dnet_vpc_id,
+                'dnet_igw_id': args.dnet_igw_id,
+                
+                'dnet_pub_websubnet_id': args.dnet_pub_websubnet_id,
+                'dnet_pvt_dbsubnet_id': args.dnet_pvt_dbsubnet_id,
+                
+                'dnet_pub_websubnet_rt_id': args.dnet_pub_websubnet_rt_id,
+                'dnet_pvt_dbsubnet_rt_id': args.dnet_pvt_dbsubnet_rt_id,
+            }
 
     # Validate loaded IDs present
     missing = [k for k,v in resource_ids.items() if not v]
     if missing:
         print(f"Missing required resource IDs to delete: {', '.join(missing)}")
         return
+    
+    if args.network == 'dev':    
+        #cleanup_natgw(ec2_client, resource_ids['dnet_natgw_id'])
+        #release_eip(ec2_client, resource_ids['dnet_eip_id'])
+        cleanup_routetables(ec2_client, [resource_ids['dnet_pvt_dbsubnet_rt_id'], resource_ids['dnet_pub_websubnet_rt_id']])
+        cleanup_subnets(ec2, [resource_ids['dnet_pvt_dbsubnet_id'], resource_ids['dnet_pub_websubnet_id']])
+        cleanup_igw(ec2, resource_ids['dnet_igw_id'], resource_ids['dnet_vpc_id'])
+        cleanup_vpc(ec2, resource_ids['dnet_vpc_id'])
 
-    cleanup_natgw(ec2_client, resource_ids['natgw_id'])
-    release_eip(ec2_client, resource_ids['eip_id'])
-    cleanup_routetables(ec2_client, [resource_ids['private_rt_id'], resource_ids['public_rt_id']])
-    cleanup_subnets(ec2, [resource_ids['private_subnet_id'], resource_ids['public_subnet_id']])
-    cleanup_igw(ec2, resource_ids['igw_id'], resource_ids['vpc_id'])
-    cleanup_vpc(ec2, resource_ids['vpc_id'])
-
-
+    if args.network == 'prod':
+        # Set the flag to use NAT and EIP
+        if not skip_expensive:
+            cleanup_natgw(ec2_client, resource_ids['pnet_natgw_id'])
+            release_eip(ec2_client, resource_ids['pnet_eip_id'])
+        cleanup_routetables(ec2_client, [resource_ids['pnet_pvt_app1subnet_rt_id'], resource_ids['pnet_pub_websubnet_rt_id']])
+        cleanup_subnets(ec2, [resource_ids['pnet_pvt_app1subnet_id'], resource_ids['pnet_pub_websubnet_id']])
+        cleanup_igw(ec2, resource_ids['pnet_igw_id'], resource_ids['pnet_vpc_id'])
+        cleanup_vpc(ec2, resource_ids['pnet_vpc_id'])
 
 def main():
     parser = argparse.ArgumentParser(description='Manage AWS VPC environment')
-    parser.add_argument('--action', required=True, choices=['create', 'delete'], help='Action to perform')
+    parser.add_argument('--action', required=True, choices=['create-vpc', 'delete-vpc', 'create-peer','delete-peer'], help='Action to perform')
+    parser.add_argument('--network', choices=['dev', 'prod'], help='VPC network type either development or production')
     parser.add_argument('--resource-file', default='vpc_resources.json', help='Path to saved resource IDs JSON file (for delete)')
+    # If using peer, require both VPC IDs, or read them from resources file
+    parser.add_argument('--prod-vpc-id', help='Production VPC ID')
+    parser.add_argument('--dev-vpc-id', help='Development VPC ID')
 
     # Old delete params made optional now
-    parser.add_argument('--vpc-id', help='VPC ID')
-    parser.add_argument('--igw-id', help='Internet Gateway ID')
-    parser.add_argument('--private-subnet-id', help='Private Subnet ID')
-    parser.add_argument('--public-subnet-id', help='Public Subnet ID')
-    parser.add_argument('--eip-id', help='Elastic IP Allocation ID')
-    parser.add_argument('--natgw-id', help='NAT Gateway ID')
-    parser.add_argument('--private-rt-id', help='Private Route Table ID')
-    parser.add_argument('--public-rt-id', help='Public Route Table ID')
+    parser.add_argument('--pnet-vpc-id', help='Production network VPC ID')
+    parser.add_argument('--pnet-igw-id', help='Production network Internet Gateway ID')
+    parser.add_argument('--pnet-private-subnet-id', help='Private Subnet ID')
+    parser.add_argument('--pnet-public-subnet-id', help='Public Subnet ID')
+    parser.add_argument('--pnet-eip-id', help='Elastic IP Allocation ID')
+    parser.add_argument('--pnet-natgw-id', help='NAT Gateway ID')
+    parser.add_argument('--pnet-private-rt-id', help='Private Route Table ID')
+    parser.add_argument('--pnet-public-rt-id', help='Public Route Table ID')
+
+    # Old delete params made optional now
+    parser.add_argument('--dnet-vpc-id', help='Development Network VPC ID')
+    parser.add_argument('--dnet-igw-id', help='Development Network Internet Gateway ID')
+    parser.add_argument('--dnet-private-subnet-id', help='Private Subnet ID')
+    parser.add_argument('--dnet-public-subnet-id', help='Public Subnet ID')
+    parser.add_argument('--dnet-eip-id', help='Elastic IP Allocation ID')
+    parser.add_argument('--dnet-natgw-id', help='NAT Gateway ID')
+    parser.add_argument('--dnet-private-rt-id', help='Private Route Table ID')
+    parser.add_argument('--dnet-public-rt-id', help='Public Route Table ID')
 
     args = parser.parse_args()
 
-    if args.action == 'create':
+    skip_expensive = os.environ.get('SKIP_EXPENSIVE', '0') == '1'
+    
+    if args.action == 'create-vpc':
         try:
-            create_resources(output_file=args.resource_file)
+            if not args.network:
+                print(f"network not specified with create")
+                sys.exit(1)
+            create_resources(args.network, output_file=args.resource_file, skip_expensive=skip_expensive)
         except Exception as e:
             print(f"Exception during resource creation: {e}")
             traceback.print_exc()
-    elif args.action == 'delete':
+    elif args.action == 'delete-vpc':
         try:
-            cleanup_resources(args)
+            if not args.network:
+                print(f"network not specified with delete")
+                sys.exit(1)
+
+            cleanup_resources(args, skip_expensive=skip_expensive)
         except Exception as e:
             print(f"Exception during cleanup: {e}")
             traceback.print_exc()
+    elif args.action == 'create-peer':
+        ec2_client = boto3.client('ec2', region_name=region)
+        resources = {}
+        print(f"prod_vpc_id {args.prod_vpc_id} dev_vpc_id {args.dev_vpc_id}")
+        # Load VPC IDs from file if not provided
+        if not args.prod_vpc_id or not args.dev_vpc_id:
+            with open(args.resource_file) as f:
+                resources = json.load(f)
+            prod_vpc_id = resources.get('pnet_vpc_id')
+            dev_vpc_id = resources.get('dnet_vpc_id')
+            print(f"resources: {resources}")
+        else:
+            with open(args.resource_file) as f:
+                resources = json.load(f)
+            prod_vpc_id = args.prod_vpc_id
+            dev_vpc_id = args.dev_vpc_id
+
+        peering_id = create_peering(ec2_client, prod_vpc_id, dev_vpc_id)
+        resources_data = {'peering_id': peering_id}
+        save_resource_file(resources_data, resource_type="vpc-peering", output_file=args.resource_file)
+
+        # Get route table IDs and CIDRs similarly from resources file
+        #print(f"resources: {resources}")
+        pnet_pvt_dbcachesubnet_rt_id = resources.get('pnet_pvt_dbcachesubnet_rt_id')
+        pnet_pvt_dbsubnet_rt_id = resources.get('pnet_pvt_dbsubnet_rt_id')
+        dnet_pvt_dbsubnet_rt_id = resources.get('dnet_pvt_dbsubnet_rt_id')
+        #print(f"pnet_pvt_app1subnet_rt_id {pnet_pvt_app1subnet_rt_id} dnet_pvt_dbsubnet_rt_id {dnet_pvt_dbsubnet_rt_id}")
+
+        # 4. Setup connection between db subnets of both production network and development network respectively.
+        # Add route in production network dbcache & db subnet route tables for DEV CIDR with destination peering id
+        add_peering_routes(ec2_client, pnet_pvt_dbcachesubnet_rt_id, DEV_NET_VPC_CIDR, peering_id)
+        add_peering_routes(ec2_client, pnet_pvt_dbsubnet_rt_id, DEV_NET_VPC_CIDR, peering_id)
+
+        # Add route in development network  subnet route table for PROD CIDR with destination peering id
+        add_peering_routes(ec2_client, dnet_pvt_dbsubnet_rt_id, PROD_NET_VPC_CIDR, peering_id)
+
+    elif args.action == 'delete-peer':
+        ec2_client = boto3.client('ec2', region_name=region)
+        resources = json.load(open(args.resource_file))
+        peering_id = resources.get('peering_id')
+        pnet_pvt_dbcachesubnet_rt_id = resources.get('pnet_pvt_dbcachesubnet_rt_id')
+        pnet_pvt_dbsubnet_rt_id = resources.get('pnet_pvt_dbsubnet_rt_id')
+        dnet_pvt_dbsubnet_rt_id = resources.get('dnet_pvt_dbsubnet_rt_id')
+
+        ec2_client.delete_route(RouteTableId=pnet_pvt_dbcachesubnet_rt_id, DestinationCidrBlock=DEV_NET_VPC_CIDR)
+        print(f"Deleted route to {DEV_NET_VPC_CIDR} from route table {pnet_pvt_dbcachesubnet_rt_id}")
+        ec2_client.delete_route(RouteTableId=pnet_pvt_dbsubnet_rt_id, DestinationCidrBlock=DEV_NET_VPC_CIDR)
+        print(f"Deleted route to {DEV_NET_VPC_CIDR} from route table {pnet_pvt_dbsubnet_rt_id}")
+        ec2_client.delete_route(RouteTableId=dnet_pvt_dbsubnet_rt_id, DestinationCidrBlock=PROD_NET_VPC_CIDR)
+        print(f"Deleted route to {PROD_NET_VPC_CIDR} from route table {dnet_pvt_dbsubnet_rt_id}")
+
 
 if __name__ == '__main__':
     main()

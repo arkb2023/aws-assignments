@@ -50,10 +50,36 @@ def terminate_instances(ec2_client, instance_ids):
         except Exception as e:
             print(f"Error terminating instance {instance_id}: {e}")
 
-def save_resource_file(instances_dict, filename='instances_resource.json'):
-    with open(filename, 'w') as f:
-        json.dump(instances_dict, f, indent=2)
-    print(f"Saved instances info to {filename}")
+def xxxsave_resource_file(instances_dict, filename='instances_resource.json'):
+    if os.path.exists(filename):
+        with open(filename, 'a') as f:
+            json.dump(instances_dict, f, indent=2)
+        print(f"Appended instances info to {filename}")
+    else:
+        with open(filename, 'w') as f:
+            json.dump(instances_dict, f, indent=2)
+        print(f"Saved instances info to {filename}")
+
+def save_resource_file(new_resources, resource_type="undef", output_file='instances_resource.json'):
+    # Load existing data if file exists
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as f:
+            try:
+                existing_data = json.load(f)
+            except json.JSONDecodeError:
+                existing_data = {}
+    else:
+        existing_data = {}
+
+    # Update existing data with new resources (e.g., 'pnet_*' or 'dnet_*' keys)
+    existing_data.update(new_resources)
+
+    # Write back the merged JSON data
+    with open(output_file, 'w') as f:
+        json.dump(existing_data, f, indent=2)
+    print(f"Merged and saved {resource_type} resource info to {output_file}")
+
+
 
 def load_resource_file(filename='instances_resource.json'):
     if os.path.isfile(filename):
@@ -104,8 +130,7 @@ def main():
                 )
                 instances_info[inst_name] = instance_id
 
-            save_resource_file(instances_info, filename=args.resource_file)
-
+            save_resource_file(instances_info, resource_type="ec2-instance", output_file=args.resource_file)
         elif args.action == 'terminate':
             instances_info = load_resource_file(filename=args.resource_file)
             if not instances_info:
