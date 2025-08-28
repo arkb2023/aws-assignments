@@ -175,89 +175,111 @@ cat vpc_resources.json
 ```
 
 ---
-## 3.a Create Security Groups for Production Network
+## 3 Create Security Groups
 ```bash
-$ python3 securitygroups.py --vpc-id $PROD_NET_VPC_ID --action create
+$ python3 securitygroups.py --action create --prod-vpc-id $PROD_NET_VPC_ID --dev-vpc-id $DEV_NET_VPC_ID --resource-file sg_resources.json
 ```
 
-**Output:**
+****Example Output:**
 ```bash
-Created security group PublicSG -> sg-0a0501bdd00176b4a
-Created security group PrivateSG -> sg-0bd3f74905ab883d1
+Created security group Prod-Webserver-SG with ID sg-0dae050adef4996fd
+Ingress rules set for Prod-Webserver-SG
+Created security group Prod-Dbcache-App1-SG with ID sg-0ecddf4dd4e5b7830
+Ingress rules set for Prod-Dbcache-App1-SG
+Created security group Prod-Dbcache-DB-SG with ID sg-0a489955e060c0a45
+Ingress rules set for Prod-Dbcache-DB-SG
+Created security group Prod-App2-SG with ID sg-0ebf5948452b9f459
+Ingress rules set for Prod-App2-SG
+Created security group Dev-Webserver-SG with ID sg-02894f4027c95e918
+Ingress rules set for Dev-Webserver-SG
+Created security group Dev-DB-SG with ID sg-09b4281e37d17dccf
+Ingress rules set for Dev-DB-SG
+Saved security group IDs to sg_resources.json
 ```
-
+```bash
+$ cat sg_resources.json
+{
+  "prod_web_sg_id": "sg-0dae050adef4996fd",
+  "prod_dbcache_app1_sg_id": "sg-0ecddf4dd4e5b7830",
+  "prod_dbcache_db_sg_id": "sg-0a489955e060c0a45",
+  "prod_app2_sg_id": "sg-0ebf5948452b9f459",
+  "dev_web_sg_id": "sg-02894f4027c95e918",
+  "dev_db_sg_id": "sg-09b4281e37d17dccf"
+}$
+```
 **Export variables:**
 ```bash
-export PROD_NET_PUBLIC_SG="sg-0efb423859e670ad9"
-export PROD_NET_PRIVATE_SG="sg-00c5deb85708f4d33"
-```
-
-## 3.b Create Security Groups for Development Network
-```bash
-$ python3 securitygroups.py --vpc-id $DEV_NET_VPC_ID --action create
-```
-
-**Output:**
-```bash
-Created security group PublicSG -> sg-0a0501bdd00176b4a
-Created security group PrivateSG -> sg-0bd3f74905ab883d1
-```
-
-**Export variables:**
-```bash
-export DEV_NET_PUBLIC_SG="sg-00747cd1a02602055"
-export DEV_NET_PRIVATE_SG="sg-0b37260284c28a80c"
+export PROD_WEB_SG_ID="sg-0dae050adef4996fd"
+export PROD_DBCACHE_APP1_SG_ID="sg-0ecddf4dd4e5b7830"
+export PROD_DBCACHE_DB_SG_ID="sg-0a489955e060c0a45"
+export PROD_APP2_SG_ID="sg-0ebf5948452b9f459"
+export DEV_WEB_SG_ID="sg-02894f4027c95e918"
+export DEV_DB_SG_ID="sg-09b4281e37d17dccf"
 ```
 
 ---
 ## 4. Generate SSH Key Pair
 ```bash
-python keypair.py --action create
+python keypair.py --action create --resource-file "keypair_resources.json"
 ```
-
-**Result:**
-- Key pair created MyKeyPair (private key saved as `MyKeyPair.pem`)
-
+```bash
+$ cat keypair_resources.json
+<<TBD>>
+```
+**Export variables:**
 ```bash
 export KEYPAIR="MyKeyPair"
 ```
+# Start the SSH agent:
+$ eval "$(ssh-agent -s)"
+Agent pid 12345
 
----
+# Add private key
+$ ssh-add MyKeyPair.pem
+Identity added: MyKeyPair.pem (MyKeyPair.pem)
+
+# Verify the key was added
+$ ssh-add -l
+2048 SHA256:3dM/d0pmvuwAoNTRVRYbAgdRaPRMhm/eIj3X2eQlNYI MyKeyPair.pem (RSA)
 
 ## 5.a Launch EC2 Instances in Production Network
 
 ### Webserver (Public Subnet)
 ```bash
 export PROD_NET_WEBSERVER_INSTANCE_NAME="prod-net-webserver"
-python ec2instance.py --action create     --subnet-id $PROD_NET_PUBLIC_SUBNET_ID     --sg-ids $PROD_NET_PUBLIC_SG     --key-name $KEYPAIR     --instance-names $PROD_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip
+python ec2instance.py --action create     --subnet-id $PROD_NET_PUBLIC_SUBNET_ID     --sg-ids $PROD_WEB_SG_ID     --key-name $KEYPAIR     --instance-names $PROD_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip
 export PROD_NET_WEBSERVER_INSTANCE_ID="i-0c17eac8724fbacc9"
 ```
 
 ### App1 Server (Private Subnet)
 ```bash
 export PROD_NET_APP1SERVER_INSTANCE_NAME="prod-net-app1server"
-python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_NET_PRIVATE_SG     --key-name $KEYPAIR     --instance-names $PROD_NET_APP1SERVER_INSTANCE_NAME
+python ec2instance.py --action create \
+  --subnet-id $PROD_NET_PRIVATE_SUBNET_ID \
+  --sg-ids $PROD_DBCACHE_APP1_SG_ID  $PROD_DBCACHE_DB_SG_ID \
+  --key-name $KEYPAIR \
+  --instance-names $PROD_NET_APP1SERVER_INSTANCE_NAME
 export PROD_NET_APP1SERVER_INSTANCE_ID="i-087c2afe42c6f403f"
 ```
 
 ### DBCache Server (Private Subnet)
 ```bash
 export PROD_NET_DBCACHESERVER_INSTANCE_NAME="prod-net-dbcacheserver"
-python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_NET_PRIVATE_SG     --key-name $KEYPAIR     --instance-names $PROD_NET_DBCACHESERVER_INSTANCE_NAME
+python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_DBCACHE_APP1_SG_ID   $PROD_DBCACHE_DB_SG_ID  --key-name $KEYPAIR     --instance-names $PROD_NET_DBCACHESERVER_INSTANCE_NAME
 export PROD_NET_DBCACHESERVER_INSTANCE_ID="i-0f843bc3435c5819e"
 ```
 
 ### App2 Server (Private Subnet)
 ```bash
 export PROD_NET_APP2SERVER_INSTANCE_NAME="prod-net-app2server"
-python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_NET_PRIVATE_SG     --key-name $KEYPAIR     --instance-names $PROD_NET_APP2SERVER_INSTANCE_NAME
+python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_APP2_SG_ID     --key-name $KEYPAIR     --instance-names $PROD_NET_APP2SERVER_INSTANCE_NAME
 export PROD_NET_APP2SERVER_INSTANCE_ID="i-0f7566c0b5d7cee04"
 ```
 
 ### Database Server (Private Subnet)
 ```bash
 export PROD_NET_DBSERVER_INSTANCE_NAME="prod-net-dbserver"
-python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_NET_PRIVATE_SG     --key-name $KEYPAIR     --instance-names $PROD_NET_DBSERVER_INSTANCE_NAME
+python ec2instance.py --action create     --subnet-id $PROD_NET_PRIVATE_SUBNET_ID     --sg-ids $PROD_DBCACHE_DB_SG_ID     --key-name $KEYPAIR     --instance-names $PROD_NET_DBSERVER_INSTANCE_NAME
 export PROD_NET_DBSERVER_INSTANCE_ID="i-01e21a918bad2d466"
 ```
 
@@ -266,7 +288,7 @@ export PROD_NET_DBSERVER_INSTANCE_ID="i-01e21a918bad2d466"
 ### Webserver (Public Subnet)
 ```bash
 export DEV_NET_WEBSERVER_INSTANCE_NAME="dev-net-webserver"
-$ python ec2instance.py --action create     --subnet-id $DEV_NET_PUBLIC_SUBNET_ID     --sg-ids $DEV_NET_PUBLIC_SG     --key-name $KEYPAIR     --instance-names $DEV_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip
+$ python ec2instance.py --action create     --subnet-id $DEV_NET_PUBLIC_SUBNET_ID     --sg-ids $DEV_WEB_SG_ID     --key-name $KEYPAIR     --instance-names $DEV_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip
 Created instance dev-net-webserver with ID: i-0ab5a58f75a6dbb7c
 export DEV_NET_WEBSERVER_INSTANCE_ID="i-0abb670ebbaba546b"
 ```
@@ -274,43 +296,38 @@ export DEV_NET_WEBSERVER_INSTANCE_ID="i-0abb670ebbaba546b"
 ### App1 Server (Private Subnet)
 ```bash
 export DEV_NET_DBSERVER_INSTANCE_NAME="dev-net-dbserver"
-$ python3 ec2instance.py --action create     --subnet-id $DEV_NET_PRIVATE_SUBNET_ID     --sg-ids $DEV_NET_PRIVATE_SG     --key-name $KEYPAIR     --instance-names $DEV_NET_DBSERVER_INSTANCE_NAME
+$ python3 ec2instance.py --action create     --subnet-id $DEV_NET_PRIVATE_SUBNET_ID     --sg-ids $DEV_DB_SG_ID    --key-name $KEYPAIR     --instance-names $DEV_NET_DBSERVER_INSTANCE_NAME
 Created instance dev-net-dbserver with ID: i-0be18fb0ce893e1b2
 export DEV_NET_DBSERVER_INSTANCE_ID="i-0b36bc7b0d20a7757"
 ```
 
 ---
-
-## 6. Fetch Instance IPs of Production Network EC2 instances
+## 6. Fetch the Instance details
 ```bash
-# Webserver (public IP)
-PROD_NET_WEBSERVER_IP=$(aws ec2 describe-instances --instance-ids ${PROD_NET_WEBSERVER_INSTANCE_ID}    --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
-echo $PROD_NET_WEBSERVER_IP
-
-# App1, Cache, App2, DB private IPs
-PROD_NET_APP1SERVER_IP=$(aws ec2 describe-instances --instance-ids $PROD_NET_APP1SERVER_INSTANCE_ID    --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
-echo $PROD_NET_APP1SERVER_IP
-10.10.2.237
+$ aws ec2 describe-instances \
+    --filters "Name=instance-state-name,Values=running" \
+    --query "Reservations[*].Instances[*].{InstanceId:InstanceId,InstanceState:State.Name,InstanceType:InstanceType,Name:Tags[?Key=='Name'].Value|[0],PublicIp:PublicIpAddress,PrivateIp:PrivateIpAddress,SubnetId:SubnetId}" \
+    --output table
 ```
-
-## 6. Fetch Instance IPs of Development Network EC2 instances
+****Example Output:**
 ```bash
-# Webserver (public IP)
-$ DEV_NET_WEBSERVER_IP=$(aws ec2 describe-instances --instance-ids ${DEV_NET_WEBSERVER_INSTANCE_ID}    --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
-$ echo $DEV_NET_WEBSERVER_IP
-34.219.67.91
-
-# App1, Cache, App2, DB private IPs
-$ DEV_NET_DBSERVER_IP=$(aws ec2 describe-instances --instance-ids $DEV_NET_DBSERVER_INSTANCE_ID    --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
-$ echo $DEV_NET_DBSERVER_IP
-10.20.2.100
+<<TBD>>
 ```
-
+**Export resource IDs:**
+```bash
+$ export PROD_NET_WEBSERVER_IP=<<TBD>>
+$ export PROD_NET_APP1SERVER_IP=<<TBD>>
+$ export PROD_NET_APP2SERVER_IP=<<TBD>>
+$ export PROD_NET_DBCACHESERVER_IP=<<TBD>>
+$ export PROD_NET_DBSERVER_IP=<<TBD>>
+$ export DEV_NET_WEBSERVER_IP=<<TBD>>
+$ export DEV_NET_DBSERVER_IP=<<TBD>>
+```
 ---
 
-## 7. SSH Access
+## 7. Test the network
 
-Start SSH agent and add key:
+**Start SSH agent and add key**
 ```bash
 $ eval "$(ssh-agent -s)"
 Agent pid 14525
@@ -320,30 +337,11 @@ $ ssh-add -l
 2048 SHA256:PYkbdX6VwErNy4MWr3V7FKPjJkc7CTrMjQIjs/nZyvY MyKeyPair.pem (RSA)
 ```
 
-Connect to **App1 Server** via Webserver Jump Host:
+**i) Test internet access for dbcache instance**
 ```bash
-ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_APP1SERVER_IP
-Last login: Tue Aug 26 17:21:36 2025 from ip-10-10-1-88.us-west-2.compute.internal
-   ,     #_
-   ~\_  ####_        Amazon Linux 2
-  ~~  \_#####\
-  ~~     \###|       AL2 End of Life is 2026-06-30.
-  ~~       \#/ ___
-   ~~       V~' '->
-    ~~~         /    A newer version of Amazon Linux is available!
-      ~~._.   _/
-         _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
-       _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
-
-
-[ec2-user@ip-10-10-2-177 ~]$
-
+$ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBCACHESERVER_IP
 ```
-
----
-
-## 8. Verify Networking in Production Network
-Inside App1 server:
+** Inside dbcache instance **
 ```bash
 [ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
 PING www.google.com (142.250.73.132) 56(84) bytes of data.
@@ -354,16 +352,7 @@ PING www.google.com (142.250.73.132) 56(84) bytes of data.
 --- www.google.com ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
 rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
-[ec2-user@ip-10-10-2-177 ~]
 
-# ping to internet works as NAT GW is configured
-[ec2-user@ip-10-10-2-177 ~]$ ping -c 3 8.8.8.8
-PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
-64 bytes from 8.8.8.8: icmp_seq=1 ttl=116 time=6.76 ms
-64 bytes from 8.8.8.8: icmp_seq=2 ttl=116 time=6.24 ms
-64 bytes from 8.8.8.8: icmp_seq=3 ttl=116 time=6.22 ms
-
-# curl to google works as NAT GW is configured
 [ec2-user@ip-10-10-2-177 ~]$ curl google.com
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 <TITLE>301 Moved</TITLE></HEAD><BODY>
@@ -371,7 +360,6 @@ PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
 The document has moved
 <A HREF="http://www.google.com/">here</A>.
 </BODY></HTML>
-[ec2-user@ip-10-10-2-177 ~]$ 
 
 # Ping to DB server of Development network works due to VPC peering
 [ec2-user@ip-10-10-2-237 ~]$ ping 10.20.2.152 -c 3
@@ -385,61 +373,64 @@ PING 10.20.2.152 (10.20.2.152) 56(84) bytes of data.
 rtt min/avg/max/mdev = 0.910/1.046/1.273/0.165 ms
 
 ```
+**ii) Test internet access for app1 instance**
+```bash
+$ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_APP1SERVER_IP
+```
+** Inside app1 instance **
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
 
-Connect to **App1 Server** via Webserver Jump Host of the Development Network
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
+
+[ec2-user@ip-10-10-2-177 ~]$ curl google.com
+<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+<TITLE>301 Moved</TITLE></HEAD><BODY>
+<H1>301 Moved</H1>
+The document has moved
+<A HREF="http://www.google.com/">here</A>.
+</BODY></HTML>
+
+```
+
+**iii) Make sure only the web subnet can send internet requests**
+
+```bash
+$ ssh -J ec2-user@$DEV_NET_WEBSERVER_IP
+```
+** Inside app1 instance **
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
+
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
+
+[ec2-user@ip-10-10-2-177 ~]$ curl google.com
+<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+<TITLE>301 Moved</TITLE></HEAD><BODY>
+<H1>301 Moved</H1>
+The document has moved
+<A HREF="http://www.google.com/">here</A>.
+</BODY></HTML>
+```
+# ssh to dbserver-dev instance using webserver-dev as jump host
 ```bash
 $ ssh -J ec2-user@$DEV_NET_WEBSERVER_IP ec2-user@$DEV_NET_DBSERVER_IP
-The authenticity of host '52.35.118.224 (52.35.118.224)' can't be established.
-ED25519 key fingerprint is SHA256:XAq1UD2EpveEjy6AvU49UOpYt70QR8hmjoyUyAQpqiQ.
-This key is not known by any other names.
-Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
-Warning: Permanently added '52.35.118.224' (ED25519) to the list of known hosts.
-The authenticity of host '10.20.2.152 (<no hostip for proxy command>)' can't be established.
-ED25519 key fingerprint is SHA256:yabhaKWcJuixITLnDPUVS8U2ufMQikpYvHmcpcLMb/4.
-This key is not known by any other names.
-Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
-Warning: Permanently added '10.20.2.152' (ED25519) to the list of known hosts.
-   ,     #_
-   ~\_  ####_        Amazon Linux 2
-  ~~  \_#####\
-  ~~     \###|       AL2 End of Life is 2026-06-30.
-  ~~       \#/ ___
-   ~~       V~' '->
-    ~~~         /    A newer version of Amazon Linux is available!
-      ~~._.   _/
-         _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
-       _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
-
-[ec2-user@ip-10-20-2-152 ~]$ 
 ```
----
-
-## 8. Verify Networking in Development Network
-Inside db server:
+** Inside db instance **
+# check if ping www.google.com does not work (expected)
 ```bash
-# Ping to Production network DBcache server works due to VPC peering
-[ec2-user@ip-10-20-2-152 ~]$ ping 10.10.2.237 -c 3
-PING 10.10.2.237 (10.10.2.237) 56(84) bytes of data.
-64 bytes from 10.10.2.237: icmp_seq=1 ttl=255 time=0.957 ms
-64 bytes from 10.10.2.237: icmp_seq=2 ttl=255 time=1.00 ms
-64 bytes from 10.10.2.237: icmp_seq=3 ttl=255 time=0.935 ms
-
---- 10.10.2.237 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2002ms
-rtt min/avg/max/mdev = 0.935/0.964/1.002/0.045 ms
-
-# curl to google fails as no NAT GW configured
-[ec2-user@ip-10-20-2-152 ~]$  curl google.com
-^C
-[ec2-user@ip-10-20-2-152 ~]$ ^C
-
-# Ping to internet fails as no NAT GW configured
-[ec2-user@ip-10-20-2-152 ~]$  ping -c 3 8.8.8.8
-PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
-
---- 8.8.8.8 ping statistics ---
-3 packets transmitted, 0 received, 100% packet loss, time 2042ms
-
 # Ping to google fails as no NAT GW configured
 [ec2-user@ip-10-20-2-152 ~]$ ping www.google.com -c 3
 PING www.google.com (142.251.33.68) 56(84) bytes of data.
@@ -449,39 +440,95 @@ PING www.google.com (142.251.33.68) 56(84) bytes of data.
 
 [ec2-user@ip-10-20-2-152 ~]$
 
+# curl www.google.com does not work (expected)
+[ec2-user@ip-10-20-2-152 ~]$  curl google.com
+^C
+[ec2-user@ip-10-20-2-152 ~]$ ^C
 ```
-
----
-
-## 9. List Running Instances
+**iv) Setup connection between db subnets of both production network and development network respectively.**
+Test Prod to Dev connection
+- ssh to dbcache-prod instance using webserver-prod as jump host
 ```bash
-aws ec2 describe-instances   --filters "Name=instance-state-name,Values=running"   --query "Reservations[*].Instances[*].{InstanceId:InstanceId,InstanceType:InstanceType,Name:Tags[?Key=='Name'].Value|[0],PublicIp:PublicIpAddress,PrivateIp:PrivateIpAddress,SubnetId:SubnetId}"   --output table
+$ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBCACHESERVER_IP
+```
+** Inside dbcache instance **
+- from dbcache-prod, ping/ssh to dbserver-dev instance
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
+
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
 ```
 
+Test reverse Dev to Prod connection
+- ssh to db-prod instance using webserver-prod as jump host
+```bash
+$ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBSERVER_IP
+```
+** Inside db instance **
+- from db-prod, ping/ssh to dbserver-dev instance
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
 
----
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
+```
+- ssh to db-dev instance using webserver-dev as jump host
+```bash
+$ ssh -J ec2-user@$DEV_NET_WEBSERVER_IP ec2-user@$DEV_NET_DBSERVER_IP
+```
+** Inside db instance **
+- from db-dev, ping/ssh to dbcache-prod instance
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
 
-## 10. Cleanup
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
+```
+- from db-dev, ping/ssh to db-prod instance
+```bash
+[ec2-user@ip-10-10-2-177 ~]$ ping www.google.com -c 3
+PING www.google.com (142.250.73.132) 56(84) bytes of data.
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=116 time=8.25 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=2 ttl=116 time=7.91 ms
+64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=3 ttl=116 time=8.00 ms
+
+--- www.google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 7.919/8.058/8.256/0.161 ms
+```
+
+## 8. Cleanup
 
 ### Terminate Instances in Production Network
 ```bash
-python ec2instance.py --action terminate --terminate-names $PROD_NET_WEBSERVER_INSTANCE_NAME
-python ec2instance.py --action terminate --terminate-names $PROD_NET_APP1SERVER_INSTANCE_NAME
-python ec2instance.py --action terminate --terminate-names $PROD_NET_DBCACHESERVER_INSTANCE_NAME
-python ec2instance.py --action terminate --terminate-names $PROD_NET_APP2SERVER_INSTANCE_NAME
-python ec2instance.py --action terminate --terminate-names $PROD_NET_DBSERVER_INSTANCE_NAME
+python3 ec2instance.py --action terminate --terminate-names \
+  $PROD_NET_WEBSERVER_INSTANCE_NAME  \
+  $PROD_NET_APP1SERVER_INSTANCE_NAME \
+  $PROD_NET_DBCACHESERVER_INSTANCE_NAME \
+  $PROD_NET_APP2SERVER_INSTANCE_NAME \
+  $PROD_NET_DBSERVER_INSTANCE_NAME \
+  $DEV_NET_WEBSERVER_INSTANCE_NAME \
+  $DEV_NET_DBSERVER_INSTANCE_NAME
 ```
-
-### Terminate Instances in Production Network
-```bash
-python ec2instance.py --action terminate --terminate-names $DEV_NET_WEBSERVER_INSTANCE_NAME
-python ec2instance.py --action terminate --terminate-names $DEV_NET_DBSERVER_INSTANCE_NAME
-```
-# Fixme: instance list append in instance_resource.json
 ### Delete Security Groups
 ```bash
-python3 securitygroups.py --vpc-id ${PROD_NET_VPC_ID} --action delete     --private-sg-id $PROD_NET_PRIVATE_SG     --public-sg-id $PROD_NET_PUBLIC_SG
-python3 securitygroups.py --vpc-id ${DEV_NET_VPC_ID} --action delete     --private-sg-id $PROD_NET_PRIVATE_SG     --public-sg-id $PROD_NET_PUBLIC_SG
+$ python3 securitygroups.py --action delete --prod-vpc-id $PROD_NET_VPC_ID --dev-vpc-id $DEV_NET_VPC_ID --resource-file sg_resources.json
 ```
 
 ### Delete Key Pair
@@ -491,7 +538,7 @@ python keypair.py --action delete --key-name ${KEYPAIR} --key-file MyKeyPair.pem
 
 ### Delete VPC
 ```bash
-$ python3 vpc.py --action delete --network prod
+$ python3 vpc.py --action delete --network prod --resource-file "vpc_resources.json"
 ```
 **Example Output:**
 ```bash
@@ -508,7 +555,7 @@ Deleted IGW igw-0236760e80279ddeb
 Deleted VPC vpc-0b6aae0543c464f77
 ```
 ```bash
-$ python vpc.py --action delete --network dev
+$ python3 vpc.py --action delete --network dev --resource-file "vpc_resources.json"
 ```
 **Example Output:**
 ```bash
@@ -522,14 +569,3 @@ Detached IGW igw-0e3042332781c6a64 from VPC vpc-0755a91712ad80b05
 Deleted IGW igw-0e3042332781c6a64
 Deleted VPC vpc-0755a91712ad80b05
 ```
----
-
-## Summary
-This workflow provisions:
-- VPC with public and private subnets  
-- Security groups  
-- EC2 instances (web, apps, db, cache)  
-- NAT Gateway and Internet Gateway  
-
-It also demonstrates **SSH access to private instances via a jump host** and cleans up resources after use.
----
