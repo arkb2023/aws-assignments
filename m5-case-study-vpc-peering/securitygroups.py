@@ -4,8 +4,7 @@ import argparse
 import sys
 import json
 import os
-
-region = 'us-west-2'  # Oregon, for sandbox/testing
+import config
 
 def create_security_group(ec2_client, vpc_id, name, description, inbound_rules):
     """Create a security group with given inbound rules."""
@@ -37,6 +36,59 @@ def create_security_group(ec2_client, vpc_id, name, description, inbound_rules):
     print(f"Ingress rules set for {name}")
     return sg_id
 
+def revoke_sg_references(ec2_client, sg_id):
+    """Remove all ingress rules referencing other security groups from this SG."""
+    response = ec2_client.describe_security_groups(GroupIds=[sg_id])
+    sg = response['SecurityGroups'][0]
+    ingress_permissions = sg.get('IpPermissions', [])
+
+    # Filter for UserIdGroupPairs (SG references)
+    revoke_permissions = []
+    for perm in ingress_permissions:
+        if 'UserIdGroupPairs' in perm and perm['UserIdGroupPairs']:
+            revoke_permissions.append(perm)
+
+    if revoke_permissions:
+        ec2_client.revoke_security_group_ingress(
+            GroupId=sg_id,
+            IpPermissions=revoke_permissions
+        )
+        print(f"Revoked SG references from {sg_id}")
+
+
+def delete_security_groups_in_order(ec2_client, resource_ids):
+    # For prod SGs - first revoke refs, then delete in order to avoid dependency violation
+    prod_sg_keys = [k for k in resource_ids if k.startswith('prod_')]
+    for key in prod_sg_keys:
+        sg_id = resource_ids[key]
+        if sg_id:
+            revoke_sg_references(ec2_client, sg_id)
+
+    for key in prod_sg_keys:
+        sg_id = resource_ids[key]
+        if sg_id:
+            try:
+                ec2_client.delete_security_group(GroupId=sg_id)
+                print(f"Deleted production security group {key} with ID {sg_id}")
+            except Exception as e:
+                print(f"Error deleting SG {sg_id}: {e}")
+
+    # For dev SGs - do the same
+    dev_sg_keys = [k for k in resource_ids if k.startswith('dev_')]
+    for key in dev_sg_keys:
+        sg_id = resource_ids[key]
+        if sg_id:
+            revoke_sg_references(ec2_client, sg_id)
+
+    for key in dev_sg_keys:
+        sg_id = resource_ids[key]
+        if sg_id:
+            try:
+                ec2_client.delete_security_group(GroupId=sg_id)
+                print(f"Deleted development security group {key} with ID {sg_id}")
+            except Exception as e:
+                print(f"Error deleting SG {sg_id}: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description='Manage Security groups')
     parser.add_argument('--prod-vpc-id', required=True, help='Production VPC ID')
@@ -45,7 +97,7 @@ def main():
     parser.add_argument('--resource-file', default='sg_resources.json', help='Path to save/load SG IDs JSON')
     args = parser.parse_args()
 
-    ec2_client = boto3.client('ec2', region_name=region)
+    ec2_client = boto3.client('ec2', region_name=config.REGION)
 
     # Define security groups for Production network
     prod_sgs = {
@@ -53,27 +105,29 @@ def main():
             "name": "Prod-Webserver-SG",
             "description": "Inbound SSH, HTTP, ICMP from anywhere",
             "inbound_rules": [
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': '0.0.0.0/0'},
-                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': '0.0.0.0/0'},
-                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': '0.0.0.0/0'},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.ANY_CIDR},
+                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': config.ANY_CIDR},
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.ANY_CIDR},
             ],
         },
         "Dbcache_App1_SG": {
             "name": "Prod-Dbcache-App1-SG",
             "description": "SSH, HTTP, ICMP from Prod CIDR and Webserver SG",
             "inbound_rules": [
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': '10.10.0.0/16'},  # Production CIDR
-                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': '10.10.0.0/16'},
-                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': '10.10.0.0/16'},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_CIDR},  # Production CIDR
+                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': config.PROD_NET_VPC_CIDR},
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.PROD_NET_VPC_CIDR},
                 # 'user_group_pairs' will be added after WebserverSG creation
             ],
         },
         "Dbcache_DB_SG": {
             "name": "Prod-Dbcache-DB-SG",
-            "description": "SSH and ICMP from Dev DB CIDR",
+            "description": "SSH and ICMP from Dev DB CIDR & Prod Webserver",
             "inbound_rules": [
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': '10.20.2.0/24'},  # Dev DB subnet CIDR
-                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': '10.20.2.0/24'},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.DEV_NET_VPC_PVT_DBSUBNET},  # Dev DB subnet CIDR
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.DEV_NET_VPC_PVT_DBSUBNET},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_PUBLIC_WEBSUBNET},  # Prod webser subnet CIDR
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.PROD_NET_VPC_PUBLIC_WEBSUBNET},
             ],
         },
         "App2_SG": {
@@ -91,17 +145,21 @@ def main():
             "name": "Dev-Webserver-SG",
             "description": "Inbound SSH, HTTP, ICMP from anywhere",
             "inbound_rules": [
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': '0.0.0.0/0'},
-                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': '0.0.0.0/0'},
-                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': '0.0.0.0/0'},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.ANY_CIDR},
+                {'protocol': 'tcp', 'from_port': 80, 'to_port': 80, 'cidr': config.ANY_CIDR},
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.ANY_CIDR},
             ],
         },
         "DB_SG": {
             "name": "Dev-DB-SG",
-            "description": "SSH and ICMP from Prod DB CIDR",
+            "description": "SSH and ICMP from Prod DB & DBCache CIDR, also from Dev webserver",
             "inbound_rules": [
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': '10.10.5.0/24'},  # Prod DB subnet CIDR
-                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': '10.10.5.0/24'},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_PVT_DBCACHESUBNET},  # Prod dbcache subnet CIDR
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.PROD_NET_VPC_PVT_DBCACHESUBNET},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_PVT_DBSUBNET},  # Prod db subnet CIDR
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.PROD_NET_VPC_PVT_DBSUBNET},
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.DEV_NET_VPC_PUBLIC_WEBSUBNET},  # Dev webserver subnet CIDR
+                {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.DEV_NET_VPC_PUBLIC_WEBSUBNET },                
             ],
         }
     }
@@ -160,12 +218,10 @@ def main():
 
         else:  # delete
             if os.path.isfile(args.resource_file):
+                resource_ids={}
                 with open(args.resource_file, 'r') as f:
                     resource_ids = json.load(f)
-                for sg_key, sg_id in resource_ids.items():
-                    if sg_id:
-                        print(f"Deleting security group {sg_key} with ID {sg_id}")
-                        ec2_client.delete_security_group(GroupId=sg_id)
+                delete_security_groups_in_order(ec2_client, resource_ids)
             else:
                 print("Resource file not found. Provide security group IDs for deletion.")
                 sys.exit(1)

@@ -33,10 +33,10 @@ def create_instance(ec2, subnet_id, sg_ids, key_name, instance_type, name, assoc
         }]
     )
     instance = instances[0]
-    print(f"Created instance {name}")
+    print(f"Instance {name} created")
     instance.wait_until_running()
     instance.reload()
-    print(f"Created instance {name} with ID: {instance.id}")
+    print(f"Instance {name} running with ID: {instance.id}")
     return instance.id
 
 def terminate_instances(ec2_client, instance_ids):
@@ -128,7 +128,7 @@ def main():
                     name=inst_name,
                     associate_public_ip=args.associate_public_ip
                 )
-                instances_info[inst_name] = instance_id
+                instances_info[f"{inst_name}_id"] = instance_id
 
             save_resource_file(instances_info, resource_type="ec2-instance", output_file=args.resource_file)
         elif args.action == 'terminate':
@@ -141,7 +141,7 @@ def main():
             if args.terminate_names:
                 # Terminate only specified instances
                 for name in args.terminate_names:
-                    instance_id = instances_info.get(name)
+                    instance_id = instances_info.get(f"{name}_id")
                     if instance_id:
                         to_terminate.append(instance_id)
                     else:
