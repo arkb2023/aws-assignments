@@ -126,7 +126,7 @@ def main():
             "inbound_rules": [
                 {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.DEV_NET_VPC_PVT_DBSUBNET},  # Dev DB subnet CIDR
                 {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.DEV_NET_VPC_PVT_DBSUBNET},
-                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_PUBLIC_WEBSUBNET},  # Prod webser subnet CIDR
+                {'protocol': 'tcp', 'from_port': 22, 'to_port': 22, 'cidr': config.PROD_NET_VPC_PUBLIC_WEBSUBNET},  # Prod webserver subnet CIDR
                 {'protocol': 'icmp', 'from_port': -1, 'to_port': -1, 'cidr': config.PROD_NET_VPC_PUBLIC_WEBSUBNET},
             ],
         },

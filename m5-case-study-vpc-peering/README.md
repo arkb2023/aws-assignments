@@ -1,126 +1,171 @@
-# Module 5 VPC 
-Problem Statement:
-You work for XYZ Corporation and based on the expansion requirements of your corporation you have been asked to create and set up a distinct Amazon VPC for the production and development team. You are expected to perform the following tasks for the respective VPCs.
+# Module 5 VPC
 
-Production Network:
-1. Design and build a 4-tier architecture.
-2. Create 5 subnets out of which 4 should be private named app1, app2, dbcache and db and one should be public, named web.
-3. Launch instances in all subnets and name them as per the subnet that they have been launched in.
-4. Allow dbcache instance and app1 subnet to send internet requests.
-5. Manage security groups and NACLs
+### Problem Statement: 
+You work for XYZ Corporation and, based on the expansion requirements of your corporation, you have been asked to create and set up a distinct Amazon VPC for the production and development teams. You are expected to perform the following tasks for the respective VPCs.
 
-Development Network:
-1. Design and build 2-tier architecture with two subnets named web and db and launch instances in both subnets and name them as per the subnet names.
-2. Make sure only the web subnet can send internet requests.
-3. Create peering connection between production network and development network.
-4. Setup connection between db subnets of both production network and development network respectively.
+***
 
+### Production Network
 
-Approach:
-1) Production Network VPC
-    CIDR=10.10.0.0/16 
-    CIDR=10.10.1.0/24 => web (public subnet)
-    CIDR=10.10.2.0/24 => app1 (private subnet)
-    CIDR=10.10.3.0/24 => app2 (private subnet)
-    CIDR=10.10.4.0/24 => dbcache (private subnet)
-    CIDR=10.10.5.0/24 => db (private subnet)
+1.  **Design and build a 4-tier architecture.**
+2.  **Create 5 subnets:** 4 private (`app1`, `app2`, `dbcache`, and `db`) and 1 public (`web`).
+3.  **Launch instances** in all subnets and name them according to their respective subnet.
+4.  **Allow `dbcache` instances and the `app1` subnet to send internet requests.**
+5.  **Manage security groups and NACLs.**
 
-    Create VPC
-    Create IGW
-    Create private subnet for app1
-    Create private subnet for app2
-    Create private subnet for dbcache
-    Create private subnet for db
-    Create public subnet for web
-    Allocate elastic IP
-    Create NAT gateway
-    Create route table for app1 subnet, add default route with target as NAT GW
-    Create route table for app2 subnet
-    Create route table for dbcache subnet, add default route with target as NAT GW
-    Create route table for db subnet
-    Create route table for web subnet, add default route with target as IGW
-    Create Security Group for webserver EC2 instance - TBD
-        inbound ssh traffic allow from any
-        inbound http traffic allow from any
-        inbound ICMP traffic allow from any
-    Create Security Group for dbcache and app1 EC2 instances - TBD
-        inbound ssh traffic allow from any Prodcution network CIDR and associate webserver security group
-        inbound http traffic allow from any Prodcution network CIDR and associate webserver security group
-        inbound ping traffic allow from any Prodcution network CIDR and associate webserver security group        
-    Create Security Group for dbcache and db EC2 instance - TBD
-        inbound ssh traffic allow from Development Network DB CIDR
-        inbound ICMP traffic allow from Development Network DB CIDR
-    Create Security Group for app2 EC2 instances - TBD
-        inbound ping traffic allow from webserver security group
-    NACL - default allow
+***
 
-2) Development network VPC
-    CIDR=10.20.0.0/16
-    CIDR=10.20.1.0/24 => web (public subnet)
-    CIDR=10.20.2.0/24 => db (private subnet)
+### Development Network
 
-    Create VPC
-    Create IGW
-    Create private subnet for db
-    Create public subnet for web
-    Create route table for db subnet
-    Create route table for web subnet, add default route with target as IGW
-    Create Security Group for webserver EC2 instance - TBD
-        inbound ssh traffic allow from any
-        inbound http traffic allow from any
-        inbound ping traffic allow from any
-    Create Security Group for db EC2 instance - TBD
-        inbound ssh traffic allow from Production Network DB CIDR
-        inbound ICMP traffic allow from Production Network DB CIDR
+1.  **Design and build a 2-tier architecture** with two subnets (`web` and `db`).
+2.  **Launch instances** in both subnets and name them according to their respective subnet.
+3.  **Ensure only the `web` subnet can send internet requests.**
+4.  **Create a peering connection** between the production and development networks.
+5.  **Set up a connection** between the `db` subnets of both the production and development networks.
 
-3) VPC peering
-    Create VPC peering between Production network & Development network
-    Add to/fro routes in route tables:
-    Production network
-      Add route in dbcache subnet route table with, destination as development network CIDR and target as peering id
-      Add route in db subnet route table with, destination as development network CIDR and target as peering id
-    Development network
-      Add route in db subnet route table with, destination as production network CIDR and target as peering id
+***
 
-4) Launch EC2 instances 
-    a) Production network
-        i) Launch webserver-prod instance in web subnet and associate security group for webserver
-        ii) Launch app1server instance in app1 subnet and associate security group for app1 
-        iii) Launch app2server instance in app2 subnet and associate security group for app2
-        iv) Launch dbcacheserver instance in dbcache subnet and associate security group for dbcache
-        v) Launch dbserver instance in db-prod subnet and associate security group for db
-    b) Development network
-        i) Launch webserver-dev instance in webserver-dev subnet and associate security group for webserver
-        ii) Launch dbserver-dev instance in db-dev subnet and associate security group for app1 
+### Approach: 
+#### Production Network VPC
 
-6) Test the network
-    i) Test internet access for dbcache instance
-       - ssh to dbcache-prod instance using webserver-dev as jump host
-       - check if ping www.google.com works
-       - check if curl www.google.com works
-    ii) Test internet access for app1 instance
-       - check if ssh to app1 instance using webserver as jump host
-       - check if ping www.google.com works
-       - check if curl www.google.com works
-    iii) Make sure only the web subnet can send internet requests
-       - ssh to webserver-dev instance
-       - check if ping www.google.com works
-       - check if curl www.google.com works
-       - ssh to dbserver-dev instance using webserver-dev as jump host
-       - check if ping www.google.com does not work (expected)
-       - curl www.google.com does not work (expected)
-    iv) Setup connection between db subnets of both production network and development network respectively.
-        Test Prod to Dev connection
-       - ssh to dbcache-prod instance using webserver-prod as jump host
-       - from dbcache-prod, ping/ssh to dbserver-dev instance
-       Test reverse Dev to Prod connection
-       - ssh to db-prod instance using webserver-prod as jump host
-       - from db-prod, ping/ssh to dbserver-dev instance
-       - ssh to db-dev instance using webserver-dev as jump host
-       - from db-dev, ping/ssh to dbcache-prod instance
-       - from db-dev, ping/ssh to db-prod instance
+* **VPC CIDR:** `10.10.0.0/16`
+    * `10.10.1.0/24` => web (**public subnet**)
+    * `10.10.2.0/24` => app1 (**private subnet**)
+    * `10.10.3.0/24` => app2 (**private subnet**)
+    * `10.10.4.0/24` => dbcache (**private subnet**)
+    * `10.10.5.0/24` => db (**private subnet**)
 
+* **Initial Setup**
+    * Create VPC
+    * Create IGW (Internet Gateway)
+    * Create private subnets for `app1`, `app2`, `dbcache`, and `db`
+    * Create public subnet for `web`
+    * Allocate Elastic IP
+    * Create NAT Gateway
 
+* **Route Tables**
+    * Create route table for `app1` subnet, add default route with target as NAT GW
+    * Create route table for `app2` subnet
+    * Create route table for `dbcache` subnet, add default route with target as NAT GW
+    * Create route table for `db` subnet
+    * Create route table for `web` subnet, add default route with target as IGW
+
+* **Security Groups**
+    * **webserver EC2 instance**
+        * Inbound SSH traffic: allow from any
+        * Inbound HTTP traffic: allow from any
+        * Inbound ICMP traffic: allow from any
+    * **dbcache and app1 EC2 instances**
+        * Inbound SSH traffic: allow from **Production network CIDR** and `webserver` security group
+        * Inbound HTTP traffic: allow from **Production network CIDR** and `webserver` security group
+        * Inbound PING traffic: allow from **Production network CIDR** and `webserver` security group
+    * **dbcache and db EC2 instance**
+        * Inbound SSH traffic: allow from **Development Network DB CIDR**
+        * Inbound ICMP traffic: allow from **Development Network DB CIDR**
+        * Inbound SSH traffic: allow from **Production Network Webserver CIDR**
+        * Inbound ICMP traffic: allow from **Production Network Webserver CIDR**
+    * **app2 EC2 instances**
+        * Inbound PING traffic: allow from `webserver` security group
+
+* NACL - default allow
+
+***
+
+#### Development Network VPC
+
+* **VPC CIDR:** `10.20.0.0/16`
+    * `10.20.1.0/24` => web (**public subnet**)
+    * `10.20.2.0/24` => db (**private subnet**)
+
+* **Initial Setup**
+    * Create VPC
+    * Create IGW
+    * Create private subnet for `db`
+    * Create public subnet for `web`
+
+* **Route Tables**
+    * Create route table for `db` subnet
+    * Create route table for `web` subnet, add default route with target as IGW
+
+* **Security Groups**
+    * **webserver EC2 instance**
+        * Inbound SSH traffic: allow from any
+        * Inbound HTTP traffic: allow from any
+        * Inbound PING traffic: allow from any
+    * **db EC2 instance**
+        * Inbound SSH traffic: allow from **Production Network DB CIDR**
+        * Inbound ICMP traffic: allow from **Production Network DB CIDR**
+        * Inbound SSH traffic: allow from **Production Network DBCache CIDR**
+        * Inbound ICMP traffic: allow from **Production Network BCache CIDR**
+        * Inbound SSH traffic: allow from **Development Network Webserver CIDR**
+        * Inbound ICMP traffic: allow from **Development Network Webserver CIDR**
+
+***
+
+#### VPC Peering
+
+* Create VPC peering between the Production and Development networks.
+* **Add to/fro routes in route tables:**
+    * **Production Network**
+        * Add route in `dbcache` subnet route table: destination `development network CIDR`, target `peering id`
+        * Add route in `db` subnet route table: destination `development network CIDR`, target `peering id`
+    * **Development Network**
+        * Add route in `db` subnet route table: destination `production network CIDR`, target `peering id`
+
+***
+
+#### Launch EC2 Instances
+
+### a) Production Network
+
+1.  Launch `webserver-prod` in `web` subnet.
+2.  Launch `app1server` in `app1` subnet.
+3.  Launch `app2server` in `app2` subnet.
+4.  Launch `dbcacheserver` in `dbcache` subnet.
+5.  Launch `dbserver` in `db-prod` subnet.
+
+### b) Development Network
+
+1.  Launch `webserver-dev` in `webserver-dev` subnet.
+2.  Launch `dbserver-dev` in `db-dev` subnet.
+
+***
+
+# Test the Network
+
+### i) Test internet access for `dbcache` instance
+
+* SSH to `dbcache-prod` instance using `webserver-dev` as a jump host.
+* Check if `ping www.google.com` works.
+* Check if `curl www.google.com` works.
+
+### ii) Test internet access for `app1` instance
+
+* Check if SSH to `app1` instance using `webserver` as a jump host.
+* Check if `ping www.google.com` works.
+* Check if `curl www.google.com` works.
+
+### iii) Make sure only the `web` subnet can send internet requests
+
+* SSH to `webserver-dev` instance.
+    * Check if `ping www.google.com` works.
+    * Check if `curl www.google.com` works.
+* SSH to `dbserver-dev` instance using `webserver-dev` as a jump host.
+    * Check if `ping www.google.com` **does not work (expected)**.
+    * Check if `curl www.google.com` **does not work (expected)**.
+
+### iv) Setup connection between `db` subnets of both production and development networks
+
+* **Test Prod to Dev connection**
+    * SSH to `dbcache-prod` instance using `webserver-prod` as a jump host.
+    * From `dbcache-prod`, ping/SSH to `dbserver-dev` instance.
+* **Test reverse Dev to Prod connection**
+    * SSH to `db-prod` instance using `webserver-prod` as a jump host.
+    * From `db-prod`, ping/SSH to `dbserver-dev` instance.
+    * SSH to `db-dev` instance using `webserver-dev` as a jump host.
+    * From `db-dev`, ping/SSH to `dbcache-prod` instance.
+    * From `db-dev`, ping/SSH to `db-prod` instance.
+    
 Execution Details:
 ---
 
@@ -136,7 +181,7 @@ export EC2_RESOURCES_STORE_FILE="instances_resource.json"
 export KEYPAIR_RESOURCES_STORE_FILE="keypair_resources.json"
 export KEYPAIR_PEM_FILE="MyKeyPair.pem"
 - Delete any contents of resources files generated out of previous executions (rm *.json)
----
+```
 ## Create VPC and Networking Components
 
 **Create Production Network VPC**
@@ -369,7 +414,11 @@ $ ssh-add -l
 ### Webserver (Public Subnet)
 ```bash
 $ export PROD_NET_WEBSERVER_INSTANCE_NAME="prod_net_webserver"
-$ python3 ec2instance.py --action create --subnet-id $PNET_PUB_WEBSUBNET_ID --sg-ids $PROD_WEB_SG_ID --key-name $KEYPAIR --instance-names $PROD_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip --resource-file $EC2_RESOURCES_STORE_FILE
+$ python3 ec2instance.py --action create --subnet-id $PNET_PUB_WEBSUBNET_ID \
+    --sg-ids $PROD_WEB_SG_ID --key-name $KEYPAIR \
+    --instance-names $PROD_NET_WEBSERVER_INSTANCE_NAME \
+    --associate-public-ip --resource-file $EC2_RESOURCES_STORE_FILE
+```
 **Example Output:**
 ```bash
 Instance prod_net_webserver created
@@ -379,11 +428,9 @@ Merged and saved ec2-instance resource info to instances_resource.json
 ### App1 Server (Private Subnet)
 ```bash
 $ export PROD_NET_APP1SERVER_INSTANCE_NAME="prod_net_app1server"
-$ python ec2instance.py --action create \
-  --subnet-id $PNET_PVT_APP1SUBNET_ID \
+$ python ec2instance.py --action create --subnet-id $PNET_PVT_APP1SUBNET_ID \
   --sg-ids $PROD_DBCACHE_APP1_SG_ID  $PROD_DBCACHE_DB_SG_ID \
-  --key-name $KEYPAIR \
-  --instance-names $PROD_NET_APP1SERVER_INSTANCE_NAME \
+  --key-name $KEYPAIR --instance-names $PROD_NET_APP1SERVER_INSTANCE_NAME \
   --resource-file $EC2_RESOURCES_STORE_FILE
 ```
 **Example Output:**
@@ -395,7 +442,10 @@ Merged and saved ec2-instance resource info to instances_resource.json
 ### DBCache Server (Private Subnet)
 ```bash
 $ export PROD_NET_DBCACHESERVER_INSTANCE_NAME="prod_net_dbcacheserver"
-$ python3 ec2instance.py --action create     --subnet-id $PNET_PVT_DBCACHESUBNET_ID     --sg-ids $PROD_DBCACHE_APP1_SG_ID   $PROD_DBCACHE_DB_SG_ID  --key-name $KEYPAIR     --instance-names $PROD_NET_DBCACHESERVER_INSTANCE_NAME --resource-file $EC2_RESOURCES_STORE_FILE --resource-file $EC2_RESOURCES_STORE_FILE
+$ python3 ec2instance.py --action create --subnet-id $PNET_PVT_DBCACHESUBNET_ID \
+    --sg-ids $PROD_DBCACHE_APP1_SG_ID $PROD_DBCACHE_DB_SG_ID \
+    --key-name $KEYPAIR --instance-names $PROD_NET_DBCACHESERVER_INSTANCE_NAME \
+    --resource-file $EC2_RESOURCES_STORE_FILE
 ```
 **Example Output:**
 ```bash
@@ -417,7 +467,10 @@ Merged and saved ec2-instance resource info to instances_resource.json
 ### Database Server (Private Subnet)
 ```bash
 $ export PROD_NET_DBSERVER_INSTANCE_NAME="prod_net_dbserver"
-$ python3 ec2instance.py --action create     --subnet-id $PNET_PVT_DBSUBNET_ID     --sg-ids $PROD_DBCACHE_DB_SG_ID     --key-name $KEYPAIR     --instance-names $PROD_NET_DBSERVER_INSTANCE_NAME --resource-file $EC2_RESOURCES_STORE_FILE
+$ python3 ec2instance.py --action create --subnet-id $PNET_PVT_DBSUBNET_ID \
+    --sg-ids $PROD_DBCACHE_DB_SG_ID --key-name $KEYPAIR \
+    --instance-names $PROD_NET_DBSERVER_INSTANCE_NAME \
+    --resource-file $EC2_RESOURCES_STORE_FILE
 ```
 **Example Output:**
 ```bash
@@ -431,7 +484,10 @@ Merged and saved ec2-instance resource info to instances_resource.json
 ### Webserver (Public Subnet)
 ```bash
 $ export DEV_NET_WEBSERVER_INSTANCE_NAME="dev_net_webserver"
-$ python3 ec2instance.py --action create     --subnet-id $DNET_PUB_WEBSUBNET_ID     --sg-ids $DEV_WEB_SG_ID     --key-name $KEYPAIR     --instance-names $DEV_NET_WEBSERVER_INSTANCE_NAME     --associate-public-ip --resource-file $EC2_RESOURCES_STORE_FILE
+$ python3 ec2instance.py --action create --subnet-id $DNET_PUB_WEBSUBNET_ID \
+    --sg-ids $DEV_WEB_SG_ID --key-name $KEYPAIR \
+    --instance-names $DEV_NET_WEBSERVER_INSTANCE_NAME \
+    --associate-public-ip --resource-file $EC2_RESOURCES_STORE_FILE
 ```
 **Example Output:**
 ```bash
@@ -442,16 +498,20 @@ Merged and saved ec2-instance resource info to instances_resource.json
 ### App1 Server (Private Subnet)
 ```bash
 $ export DEV_NET_DBSERVER_INSTANCE_NAME="dev_net_dbserver"
-$ python3 ec2instance.py --action create     --subnet-id $DNET_PVT_DBSUBNET_ID     --sg-ids $DEV_DB_SG_ID    --key-name $KEYPAIR     --instance-names $DEV_NET_DBSERVER_INSTANCE_NAME --resource-file $EC2_RESOURCES_STORE_FILE
+$ python3 ec2instance.py --action create --subnet-id $DNET_PVT_DBSUBNET_ID \
+    --sg-ids $DEV_DB_SG_ID  --key-name $KEYPAIR \
+    --instance-names $DEV_NET_DBSERVER_INSTANCE_NAME \
+    --resource-file $EC2_RESOURCES_STORE_FILE
 ```
-**Example Output:**
+**Example Output**
 ```bash
 Instance dev_net_dbserver created
 Instance dev_net_dbserver running with ID: i-0931773ba62654ffa
 Merged and saved ec2-instance resource info to instances_resource.json
 ```
+**Example instance IDs stored in the resource file**
 ```bash
-$ cat instances_resource.jsonn
+$ cat instances_resource.json
 {
   "prod_net_webserver_id": "i-0dacfc74b8f161150",
   "prod_net_app1server_id": "i-03d3ce3d9bb517870",
@@ -488,7 +548,7 @@ $ aws ec2 describe-instances \
     --query "Reservations[*].Instances[*].{InstanceId:InstanceId,InstanceState:State.Name,InstanceType:InstanceType,Name:Tags[?Key=='Name'].Value|[0],PublicIp:PublicIpAddress,PrivateIp:PrivateIpAddress,SubnetId:SubnetId}" \
     --output table
 ```
-****Example Output:**
+**Example Output:**
 ```bash
 -------------------------------------------------------------------------------------------------------------------------------------------------
 |                                                               DescribeInstances                                                               |
@@ -507,6 +567,7 @@ $
 ```
 **Export resource IDs:**
 ```bash
+# use the ip addresses from the table and set the environment variables
 $ export PROD_NET_WEBSERVER_IP="44.251.0.89"
 $ export PROD_NET_APP1SERVER_IP="10.10.2.110"
 $ export PROD_NET_APP2SERVER_IP="10.10.3.27"
@@ -521,10 +582,10 @@ $ export DEV_NET_DBSERVER_IP="10.20.2.182"
 
 **i) Test internet access for dbcache instance**
 ```bash
+# ssh to dbcache instance through webserver as jump host
 $ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBCACHESERVER_IP
 ```
-**Example Output**
-** Inside dbcache instance **
+**Example Output**  
 ```bash
 The authenticity of host '44.251.0.89 (44.251.0.89)' can't be established.
 ED25519 key fingerprint is SHA256:T9H+qceUVsZFwOP8giPD3pc2EE3DA2owNwTGwuzt7Ss.
@@ -547,6 +608,9 @@ Warning: Permanently added '10.10.4.50' (ED25519) to the list of known hosts.
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
 
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-10-4-50 ~]$ ping www.google.com -c 3
 PING www.google.com (142.250.217.68) 56(84) bytes of data.
 64 bytes from sea09s29-in-f4.1e100.net (142.250.217.68): icmp_seq=1 ttl=116 time=8.65 ms
@@ -556,6 +620,9 @@ PING www.google.com (142.250.217.68) 56(84) bytes of data.
 --- www.google.com ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
 rtt min/avg/max/mdev = 7.821/8.123/8.652/0.389 ms
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-10-4-50 ~]$ curl google.com
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 <TITLE>301 Moved</TITLE></HEAD><BODY>
@@ -563,7 +630,8 @@ rtt min/avg/max/mdev = 7.821/8.123/8.652/0.389 ms
 The document has moved
 <A HREF="http://www.google.com/">here</A>.
 </BODY></HTML>
-
+```
+```bash
 # Ping to DB server of Development network works due to VPC peering
 [ec2-user@ip-10-10-4-50 ~]$ ping 10.20.2.182 -c 3
 PING 10.20.2.182 (10.20.2.182) 56(84) bytes of data.
@@ -577,13 +645,12 @@ rtt min/avg/max/mdev = 0.919/1.235/1.732/0.356 ms
 [ec2-user@ip-10-10-4-50 ~]$ exit
 logout
 Connection to 10.10.4.50 closed.
-
 ```
 **ii) Test internet access for app1 instance**
 ```bash
 $ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_APP1SERVER_IP
 ```
-** Inside app1 instance **
+**Example Output**
 ```bash
 The authenticity of host '10.10.2.110 (<no hostip for proxy command>)' can't be established.
 ED25519 key fingerprint is SHA256:2zfpBP8emt0nBlY9ddz86Zxbe1EVBX8eiBGJpk1PwQg.
@@ -600,7 +667,9 @@ Warning: Permanently added '10.10.2.110' (ED25519) to the list of known hosts.
       ~~._.   _/
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
-
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-10-2-110 ~]$ ping www.google.com -c 3
 PING www.google.com (142.251.215.228) 56(84) bytes of data.
 64 bytes from sea09s35-in-f4.1e100.net (142.251.215.228): icmp_seq=1 ttl=116 time=7.16 ms
@@ -610,6 +679,9 @@ PING www.google.com (142.251.215.228) 56(84) bytes of data.
 --- www.google.com ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
 rtt min/avg/max/mdev = 6.599/6.789/7.165/0.265 ms
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-10-2-110 ~]$ curl google.com
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 <TITLE>301 Moved</TITLE></HEAD><BODY>
@@ -627,7 +699,7 @@ Connection to 10.10.2.110 closed.
 ```bash
 $ ssh ec2-user@$DEV_NET_WEBSERVER_IP
 ```
-** Inside dev webserver instance **
+**Example Output**
 ```bash
 The authenticity of host '44.246.143.193 (44.246.143.193)' can't be established.
 ED25519 key fingerprint is SHA256:RqgvJd3lj0Dgt485nX8l326E6EeVb2FkWBL11QTWlFQ.
@@ -644,7 +716,9 @@ Warning: Permanently added '44.246.143.193' (ED25519) to the list of known hosts
       ~~._.   _/
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
-
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-20-1-15 ~]$ ping www.google.com -c 3
 PING www.google.com (142.250.73.132) 56(84) bytes of data.
 64 bytes from pnseaa-ao-in-f4.1e100.net (142.250.73.132): icmp_seq=1 ttl=117 time=5.70 ms
@@ -654,6 +728,9 @@ PING www.google.com (142.250.73.132) 56(84) bytes of data.
 --- www.google.com ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2002ms
 rtt min/avg/max/mdev = 5.702/5.723/5.737/0.063 ms
+```
+```bash
+# Internet access works
 [ec2-user@ip-10-20-1-15 ~]$ curl google.com
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 <TITLE>301 Moved</TITLE></HEAD><BODY>
@@ -665,11 +742,11 @@ The document has moved
 logout
 Connection to 44.246.143.193 closed.
 ```
-# ssh to dbserver-dev instance using webserver-dev as jump host
+- ssh to dbserver-dev instance using webserver-dev as jump host
 ```bash
 $ ssh -J ec2-user@$DEV_NET_WEBSERVER_IP ec2-user@$DEV_NET_DBSERVER_IP
 ```
-** Inside db instance **
+**Example Output**
 ```bash
 The authenticity of host '10.20.2.182 (<no hostip for proxy command>)' can't be established.
 ED25519 key fingerprint is SHA256:buXkSbYi/fuweHLvAQiJqA7zu+te58pZ3anOAFXaps8.
@@ -687,14 +764,16 @@ Warning: Permanently added '10.20.2.182' (ED25519) to the list of known hosts.
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
 
-
+```
+```bash
 # Ping to google fails as no NAT GW configured
 [ec2-user@ip-10-20-2-182 ~]$  ping www.google.com -c 3
 PING www.google.com (142.251.33.68) 56(84) bytes of data.
 
 --- www.google.com ping statistics ---
 3 packets transmitted, 0 received, 100% packet loss, time 2038ms
-
+```
+```bash
 # curl www.google.com does not work (expected)
 [ec2-user@ip-10-20-2-182 ~]$ curl google.com
 ^C
@@ -702,13 +781,15 @@ PING www.google.com (142.251.33.68) 56(84) bytes of data.
 logout
 Connection to 10.20.2.182 closed.
 ```
-**iv) Setup connection between db subnets of both production network and development network respectively.**
+**iv) Setup connection between db subnets of both production network and development network respectively.**  
+
 Test Prod to Dev connection
-- ssh to dbcache-prod instance using webserver-prod as jump host
+  
 ```bash
+# ssh to dbcache-prod instance using webserver-prod as jump host
 $ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBCACHESERVER_IP
 ```
-** Inside dbcache instance **
+**Example Output**
 ```bash
 Last login: Fri Aug 29 09:50:58 2025 from ip-10-10-1-204.us-west-2.compute.internal
    ,     #_
@@ -722,7 +803,8 @@ Last login: Fri Aug 29 09:50:58 2025 from ip-10-10-1-204.us-west-2.compute.inter
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
 
-
+```
+```bash
 # from dbcache-prod, ping/ssh to dbserver-dev instance
 ```bash
 [ec2-user@ip-10-10-4-50 ~]$ ping 10.20.2.182 -c 3
@@ -740,11 +822,11 @@ Connection to 10.10.4.50 closed.
 ```
 
 Test Prod Dev to connection
-- ssh to db-prod instance using webserver-prod as jump host
 ```bash
+# ssh to db-prod instance using webserver-prod as jump host
 $ ssh -J ec2-user@$PROD_NET_WEBSERVER_IP ec2-user@$PROD_NET_DBSERVER_IP
 ```
-** Inside db instance **
+**Example Output**
 ```bash
 The authenticity of host '10.10.5.101 (<no hostip for proxy command>)' can't be established.
 ED25519 key fingerprint is SHA256:CA28ijjPkYyjgSJ8Zre3Cr+mD5R33u/JoNvkjQzSGqs.
@@ -761,7 +843,8 @@ Warning: Permanently added '10.10.5.101' (ED25519) to the list of known hosts.
       ~~._.   _/
          _/ _/       Amazon Linux 2023, GA and supported until 2028-03-15.
        _/m/'           https://aws.amazon.com/linux/amazon-linux-2023/
-
+```
+```bash
 # from db-prod, ping/ssh to dbserver-dev instance
 [ec2-user@ip-10-10-5-101 ~]$ ping -c 3 10.20.2.182
 PING 10.20.2.182 (10.20.2.182) 56(84) bytes of data.
@@ -776,13 +859,12 @@ rtt min/avg/max/mdev = 0.800/1.400/2.355/0.683 ms
 logout
 Connection to 10.10.5.101 closed.
 ```
-- ssh to db-dev instance using webserver-dev as jump host
 ```bash
+# ssh to db-dev instance using webserver-dev as jump host
 $ ssh -J ec2-user@$DEV_NET_WEBSERVER_IP ec2-user@$DEV_NET_DBSERVER_IP
 ```
-** Inside db instance **
-- from db-dev, ping/ssh to dbcache-prod instance
 ```bash
+# from db-dev, ping/ssh to dbcache-prod instance
 [ec2-user@ip-10-20-2-182 ~]$ ping -c 3 10.10.4.50
 PING 10.10.4.50 (10.10.4.50) 56(84) bytes of data.
 64 bytes from 10.10.4.50: icmp_seq=1 ttl=255 time=0.917 ms
@@ -793,8 +875,8 @@ PING 10.10.4.50 (10.10.4.50) 56(84) bytes of data.
 3 packets transmitted, 3 received, 0% packet loss, time 2002ms
 rtt min/avg/max/mdev = 0.917/0.954/0.979/0.044 ms
 ```
-- from db-dev, ping/ssh to db-prod instance
 ```bash
+# from db-dev, ping/ssh to db-prod instance
 [ec2-user@ip-10-20-2-182 ~]$ ping -c 3 10.10.5.101
 PING 10.10.5.101 (10.10.5.101) 56(84) bytes of data.
 64 bytes from 10.10.5.101: icmp_seq=1 ttl=255 time=0.801 ms
@@ -811,9 +893,18 @@ Connection to 10.20.2.182 closed.
 
 ## 8. Cleanup
 
-### Terminate Instances in Production Network
+
 ```bash
-python3 ec2instance.py --action terminate --terminate-names $PROD_NET_WEBSERVER_INSTANCE_NAME $PROD_NET_APP1SERVER_INSTANCE_NAME $PROD_NET_DBCACHESERVER_INSTANCE_NAME $PROD_NET_APP2SERVER_INSTANCE_NAME $PROD_NET_DBSERVER_INSTANCE_NAME $DEV_NET_WEBSERVER_INSTANCE_NAME $DEV_NET_DBSERVER_INSTANCE_NAME --resource-file $EC2_RESOURCES_STORE_FILE
+# Terminate Instances in Production and Devlopment Network
+python3 ec2instance.py --action terminate --terminate-names \
+  $PROD_NET_WEBSERVER_INSTANCE_NAME \
+  $PROD_NET_APP1SERVER_INSTANCE_NAME \
+  $PROD_NET_DBCACHESERVER_INSTANCE_NAME \
+  $PROD_NET_APP2SERVER_INSTANCE_NAME \
+  $PROD_NET_DBSERVER_INSTANCE_NAME \
+  $DEV_NET_WEBSERVER_INSTANCE_NAME \
+  $DEV_NET_DBSERVER_INSTANCE_NAME \
+  --resource-file $EC2_RESOURCES_STORE_FILE
 ```
 **Example Output**
 ```bash
@@ -912,4 +1003,7 @@ Detached IGW igw-059c7d88ec647d53c from VPC vpc-0f7bf0210131834ff
 Deleted IGW igw-059c7d88ec647d53c
 Deleted VPC vpc-0f7bf0210131834ff
 ```
+```bash
+# remove local copy of resource files
 $ rm -rf *.json
+```
