@@ -80,6 +80,7 @@ $ aws s3api put-object --bucket $bkt_name --key example.csv --body ../m6-a01-s3-
 ```
 ### Verify Uploaded Files
 ```bash
+# Result shows an updated non-null version ID
 $ aws s3api list-object-versions --bucket $bkt_name --prefix example.csv --query "Versions[].{Key: Key, VersionId: VersionId, Size: Size, LastModified: LastModified, ETag: ETag}" --output json
 [
     {
@@ -98,6 +99,7 @@ $ aws s3api list-object-versions --bucket $bkt_name --prefix example.csv --query
     }
 ]
 
+# Result shows an updated non-null version ID
 $ aws s3api list-object-versions --bucket $bkt_name --prefix example.txt --query "Versions[].{Key: Key, VersionId: VersionId, Size: Size, LastModified: LastModified, ETag: ETag}" --output json
 [
     {
