@@ -50,7 +50,8 @@
     
 
 ### Execution details
-Edit config.py and set values
+#### Edit config.py and set values
+```bash
 $ cat config.py
 REGION = 'us-west-2'  # Oregon, for sandbox/testing
 AVAILABILITYZONE='us-west-2a'
@@ -64,7 +65,7 @@ VPC_PVT_SUBNET = '10.10.1.0/24'
 
 INSTANCE_TYPE='t2.micro'
 EFS_NAME='m2-efs'
-
+```
 ### Create a VPC and networking
 ```bash
 $ python3 vpc.py --action create-vpc
