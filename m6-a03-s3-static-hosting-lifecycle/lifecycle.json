@@ -1,0 +1,23 @@
+{
+    "Rules": [
+        {
+            "ID": "Standard to Standard-IA transition rule",
+            "Filter": {},
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 60,
+                    "StorageClass": "STANDARD_IA"
+                }
+            ]
+        },
+        {
+            "Expiration": {
+                "Days": 200
+            },
+            "ID": "200 days expiry rule",
+            "Filter": {},
+            "Status": "Enabled"
+        }
+    ]
+}

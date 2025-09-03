@@ -1,0 +1,8 @@
+export VPC_ID="vpc-0defc353743e9fe48"
+export IGW_ID="igw-073a2a1c979a90dd9"
+export SUBNET_ID="subnet-0554fc55d2e7cab9a"
+export ROUTE_TABLE_ID="rtb-07ebba2fd4626f16d"
+export EFS_SG_ID="sg-0ec4621860f2c45d6"
+export EC2_SG_ID="sg-0d50b3afaea7489d2"
+export EFS_ID="fs-0d0696ce515bf0dae"
+export MOUNT_TARGET_ID="fsmt-07a039536d789a09a"
