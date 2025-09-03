@@ -19,10 +19,22 @@
     - 1 x Red Hat
     - 1 x Amazon Linux
     - All in the public subnet, with EC2 SG attached
-    - (Optional) Attach IAM role for SSM and AWS access if automation is used
 8. **Create EFS File System**
 9. **Create EFS Mount Target** in the public subnet with the EFS SG attached
 10. **Configure User Data Scripts:** EC2 instances auto-install required packages and mount EFS on `/mnt/efs` at boot
+
+### Repository Structure
+
+| **File**                   | **Description**                                                                 |
+|----------------------------|----------------------------------------------------------------------------------|
+| [config.py](./config.py)   | Defines configuration parameters to localize runtime behavior                   |
+| [vpc.py](./vpc.py)         | Creates VPC, Internet Gateway (IGW), subnet, and route table                    |
+| [sg.py](./sg.py)           | Configures security group rules for EC2 instances and EFS mount targets         |
+| [ec2.py](./ec2.py)         | Launches and terminates EC2 instances in the specified subnet                   |
+| [efs.py](./efs.py)         | Creates an EFS file system and its mount target in the specified subnet         |
+| [keypair.py](./keypair.py) | Generates and deletes SSH key pairs for EC2 access                              |
+| [README.md](./README.md)   | Documents architecture, setup steps, testing strategy, and cleanup instructions |
+
 
 ### Test Procedure
 
@@ -50,7 +62,7 @@
     
 
 ### Execution details
-#### Edit config.py and set values
+#### Edit [config.py](./config.py) and set values
 ```bash
 $ cat config.py
 REGION = 'us-west-2'  # Oregon, for sandbox/testing
