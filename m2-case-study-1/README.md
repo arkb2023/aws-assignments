@@ -1,8 +1,7 @@
 
 ---
 
-# 📦 Module 2: EC2 and EFS
-
+# 📦 Module 2: Case Study - 1 (EC2-EBS-EFS)
 ## 📝 Tasks to Be Performed
 
 1. Create an EC2 instance in the **US-East-1 (N. Virginia)** region with Linux OS and configure it as a web server using an AMI.
