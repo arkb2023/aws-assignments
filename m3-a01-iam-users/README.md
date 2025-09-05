@@ -3,7 +3,7 @@
 ![Verified via Console](https://img.shields.io/badge/Verified-AWS%20Console-yellow?logo=amazon-aws)
 ![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
 
-# 👥 Module 3: IAM Users
+# Module 3: IAM Users
 
 ## Tasks To Be Performed
 
