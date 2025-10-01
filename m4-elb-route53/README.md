@@ -53,15 +53,17 @@ source config.sh
 VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text)
 echo $VPC_ID
 
-# Store first subnet ID in the VPC in a variable
-SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "Subnets[0].SubnetId" --output text)
-echo $SUBNET_ID
-
-# Step 1: List all subnet IDs for your VPC
+# Get all subnet IDs for the VPC as a space-separated list
 SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "Subnets[].SubnetId" --output text)
-VPC_SUBNETS=$(echo $SUBNET_IDS | tr ' ' ',')
-echo $VPC_SUBNETS
+echo "All Subnet IDs: $SUBNET_IDS"
 
+# Extract the first subnet ID (for CloudFormation stack)
+SUBNET_ID=$(echo $SUBNET_IDS | awk '{print $1}')
+echo "First Subnet ID: $SUBNET_ID"
+
+# Convert space-separated subnet IDs to comma-separated string (for ASG vpc-zone-identifier)
+VPC_SUBNETS=$(echo $SUBNET_IDS | tr ' ' ',')
+echo "Comma-separated Subnets: $VPC_SUBNETS"
 
 # Store your current public IP with /32 suffix in a variable
 MY_IP="$(curl -s https://checkip.amazonaws.com)/32"
@@ -87,16 +89,16 @@ aws ec2 authorize-security-group-ingress --group-name $ALB_SG_NAME --protocol tc
 Security group creation and rules configuration for ASG AND EC2
 -->
 # create a new Security Group for your Auto Scaling Group 
-SG_ID=$(aws ec2 create-security-group \
+ASG_EC2_SG_ID=$(aws ec2 create-security-group \
   --group-name $ASG_EC2_SG_NAME \
   --description "Security group for Auto Scaling group instances" \
   --vpc-id $VPC_ID \
   --query GroupId --output text)
-ho $SG_ID
+echo $ASG_EC2_SG_ID
 
 # Add Ingress Rule to Allow HTTP (Port 80) Traffic from ALB
 aws ec2 authorize-security-group-ingress \
-  --group-id $SG_ID \
+  --group-id $ASG_EC2_SG_ID \
   --protocol tcp \
   --port 80 \
   --source-group $ALB_SG_ID
@@ -122,9 +124,10 @@ aws cloudformation create-stack \
 ![alt text](images/cf-create-stack-success.png)
 
 # Fetch the Security group created from the CF template
-WEBHOST_SG_NAME="WebhostSecurityGroup"
+# set the security group name as per CloudFormation YAML
+<!-- WEBHOST_SG_NAME="${CF_STACK_NAME} - Website Security Group"
 WEBHOST_SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$WEBHOST_SG_NAME" "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[0].GroupId" --output text)
-echo $WEBHOST_SG_ID
+echo $WEBHOST_SG_ID -->
 
 <!--
 Create a custom machine image for our auto scaling group. 
@@ -135,7 +138,7 @@ INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=instance-state-name,Val
 echo $INSTANCE_ID
 # Use the stored Instance ID to create an AMI
 AMI_ID=$(aws ec2 create-image --instance-id $INSTANCE_ID --name $AMI_NAME --description "AMI created from CLI" --no-reboot --query 'ImageId' --output text)
-# Check the created AMI
+# Check the created AMI -- << not required >>
 aws ec2 describe-images --image-ids $AMI_ID --query 'Images[*].{ImageId:ImageId,State:State}' --output table
 
 
@@ -147,7 +150,7 @@ aws ec2 describe-images --image-ids $AMI_ID --query 'Images[*].{ImageId:ImageId,
     "ImageId": $AMI_ID,
     "InstanceType": "t2.micro",
     "KeyName": $KEY_NAME,
-    "SecurityGroupIds": [$SG_ID],
+    "SecurityGroupIds": [$ASG_EC2_SG_ID],
     "Monitoring": { "Enabled": true }
   }' -->
 
@@ -164,7 +167,7 @@ For each Launch Template, you can create one or more numbered Launch Template Ve
 <!-- aws ec2 create-launch-template \
   --launch-template-name $LAUNCH_TEMPLATE_NAME \
   --version-description "Auto scaling launch template v1" \
-  --launch-template-data "{\"ImageId\":\"$AMI_ID\",\"InstanceType\":\"t2.micro\",\"KeyName\":\"$KEY_NAME\",\"SecurityGroupIds\":[\"$SG_ID\"],\"Monitoring\":{\"Enabled\":true}}"
+  --launch-template-data "{\"ImageId\":\"$AMI_ID\",\"InstanceType\":\"t2.micro\",\"KeyName\":\"$KEY_NAME\",\"SecurityGroupIds\":[\"$ASG_EC2_SG_ID\"],\"Monitoring\":{\"Enabled\":true}}"
 # aws ec2 describe-security-groups --filters "Name=group-name,Values=WebhostSecurityGroup" "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[0].GroupId" --output text -->
 
 aws ec2 create-launch-template \
@@ -174,7 +177,7 @@ aws ec2 create-launch-template \
     \"ImageId\":\"$AMI_ID\",
     \"InstanceType\":\"t2.micro\",
     \"KeyName\":\"$KEY_NAME\",
-    \"SecurityGroupIds\":[\"$WEBHOST_SG_ID\"],
+    \"SecurityGroupIds\":[\"$ASG_EC2_SG_ID\"],
     \"Monitoring\": { \"Enabled\": true }
   }"
 
@@ -183,7 +186,7 @@ aws ec2 create-launch-template \
 ALB_ARN=$(aws elbv2 create-load-balancer \
   --name $ALB_NAME \
   --subnets $SUBNET_IDS \
-  --security-groups $SG_ID \
+  --security-groups $ALB_SG_ID \
   --scheme internet-facing \
   --type application \
   --query "LoadBalancers[0].LoadBalancerArn" \
@@ -233,7 +236,6 @@ echo $LISTENER_ARN
 You have created a Launch Template, which defines the parameters of the instances launched. Now we will create an Auto Scaling Group so that you can define how many EC2 instances should be launched and where to launch them.
 -->
 # Create an Auto Scaling Group and attach the launch template
-
 aws autoscaling create-auto-scaling-group \
   --auto-scaling-group-name $ASG_NAME \
   --launch-template LaunchTemplateName=$LAUNCH_TEMPLATE_NAME,Version=1 \
@@ -252,7 +254,8 @@ aws autoscaling put-scaling-policy \
   --policy-type TargetTrackingScaling \
   --target-tracking-configuration file://target-tracking-config.json
 
-
+### 
+GET http://M4-ALB-215013799.us-west-2.elb.amazonaws.com
 
 
 # Cleanup section
@@ -270,16 +273,13 @@ aws ec2 delete-launch-template --launch-template-name $LAUNCH_TEMPLATE_NAME
 
 # Deregister/Delete AMI and Associated Snapshot if any
 aws ec2 deregister-image --image-id $AMI_ID
-SNAPSHOT_IDS=$(aws ec2 describe-images --image-ids $AMI_ID --query "Images[0].BlockDeviceMappings[].Ebs.SnapshotId" --output text)
-for SNAP in $SNAPSHOT_IDS; do
-  aws ec2 delete-snapshot --snapshot-id $SNAP
-done
+
 
 # Delete CloudFormation Stack
 aws cloudformation delete-stack --stack-name $CF_STACK_NAME
 
 # Delete Security Group
-aws ec2 delete-security-group --group-id $SG_ID
+aws ec2 delete-security-group --group-id $ASG_EC2_SG_ID
 aws ec2 delete-security-group --group-id $ALB_SG_ID
 
 # Delete Key Pair
