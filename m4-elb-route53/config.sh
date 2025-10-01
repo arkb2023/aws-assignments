@@ -19,7 +19,15 @@ ALB_NAME="M4-ALB"
 
 # Auto Scaling Group name and scaling policy
 ASG_NAME="M4-AutoScalingGroup"
-ASG_SCALING_POLICY_NAME="M4-ASGCpuTargetTrackingPolicy"
+ASG_SCALEOUT_POLICY_NAME="M4-ASG-Cpu-ScaleOut-Policy"
+ASG_SCALEIN_POLICY_NAME="M4-ASG-Cpu-ScaleIn-Policy"
 
 # CloudFormation Stack name
 CF_STACK_NAME="M4-CF-Stack"
+
+# Cloudwatch alarms Names
+# CPU>80%
+CLOUDWATCH_HIGH_CPU_ALARM="$ASG_NAME-HighCPUAlarm"
+# CPU<60%
+CLOUDWATCH_LOW_CPU_ALARM="$ASG_NAME-LowCPUAlarm"
+
