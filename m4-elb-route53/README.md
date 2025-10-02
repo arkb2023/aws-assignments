@@ -55,129 +55,158 @@ This section outlines the step-by-step approach implemented in this project to e
 
 ### Implementation and Verification Approach
 
-This assignment leverages a combination of **AWS Command Line Interface (CLI)** and **AWS Management Console** to deliver an efficient, reproducible, and verifiable cloud infrastructure setup.
+This assignment was completed using a combination of the **AWS Command Line Interface (CLI)** and the **AWS Management Console**, ensuring both automation and visual validation.
 
-- **Configuration:**  
-  The majority of AWS resources—including AMI creation, launch templates, Application Load Balancers (ALBs), Auto Scaling Groups (ASGs), scaling policies, and CloudWatch alarm configurations—are created and managed through AWS CLI commands. This approach ensures automation, repeatability, and clear documentation for each step.
+- **Configuration** was primarily executed via CLI commands, covering the creation of key resources such as:
+  - Amazon Machine Images (AMIs)
+  - Launch Templates
+  - Application Load Balancers (ALBs)
+  - Auto Scaling Groups (ASGs)
+  - Scaling Policies and CloudWatch Alarms
 
-- **Documentation:**  
-  Each significant implementation step is accompanied by the exact CLI commands used. This fosters reproducibility and allows users to understand and replicate the infrastructure setup with precision.
+- All major steps—including AMI creation, launch template setup, ALB and ASG configuration, scaling policy definition, and alarm setup—are thoroughly documented with corresponding CLI commands to ensure reproducibility.
 
-- **Verification and Monitoring:**  
-  The AWS Management Console is used to visually inspect and verify the deployed resources. Screenshots from the console provide clear evidence of resource states, health checks, scaling activity, and alarm statuses, enriching the documentation with intuitive verification.
+- **Verification** was performed through the AWS Console to visually confirm resource creation, configuration accuracy, and operational behavior.
 
-- **Cleanup:**  
-  To maintain a clean testing environment and avoid unnecessary costs, comprehensive cleanup commands are documented. These commands safely remove all resources created during the assignment, facilitating environment reset or reuse.
+- **Screenshots** are included throughout the report to illustrate each step and provide visual evidence of successful implementation.
 
-***
+- To maintain a clean environment, **cleanup commands** are provided at the end of the assignment. These ensure that all created resources can be safely removed, allowing the setup to be reset or reused without residual configurations.
 
+---
 
-This assignment was solved using a combination of **AWS CLI** and the **AWS Management Console**
+### Project Repository File Overview
 
-- **Configuration** was performed primarily through CLI commands, including the creation of resources such as AMIs, launch templates, Application Load Balancers (ALBs), Auto Scaling Groups (ASGs), and scaling policies.  
-- All key steps—such as AMIs creation, launch templates creation, ALB configuration, ASG configuration, scaling policies, cloudwatch alarm configuration —are documented with corresponding CLIs for reproducibility.  
-- **Verification** was conducted through the AWS Console to confirm configurations and verifications
-- **Screenshots** are provided throughout to illustrate each step
-- At the end of the assignment, **cleanup commands** are included to remove all created resources, ensuring the environment can be reset or reused without residual configurations.
+This section outlines the key files and folders included in the GitHub repository. Each artifact plays a specific role in implementing, validating, or documenting the AWS auto-scaling and load balancing solution. Filenames are structured for clarity and execution order, and screenshots provide visual confirmation of each step.
 
-## CLI Tools Used
-<< TBD >>
-
-### Folder structure
 ```bash
 $ tree
 .
 ├── EC2-Auto-Scaling-Lab.yaml
 ├── README.md
-├── cleanup.sh
 ├── config.sh
 ├── images
-│   ├── 01-default-region-vpc-subnet-clientip.png
-│   ├── 02-01-cf-aws-console-create-stack-successimage.png
-│   ├── 02-cf-create-stack-success.png
-│   ├── 03-ec2-instance-running.png
-│   ├── 04-aws-cli-ec2-running-instance.png
-│   ├── 05-ec2-instance-accessed-using-public-dns.png
-│   ├── 06-01-aws-cli-ami-available.png
-│   ├── 06-02-aws-console-ami-available.png
-│   ├── 07-01-aws-cli-security-group-for-asg.png
-│   ├── 09-01-aws-console-sg-inbound-rules.png
-│   ├── 09-02-aws-cli-inbound-ssh-rule.png
-│   ├── 09-03-aws-console-sg-outbound-rules.png
-│   ├── 10-launch-template.png
-│   ├── 11-load-balancer.png
-│   ├── 12-target-group.png
-│   ├── 13-load-balancer-listner.png
-│   ├── 14-target-group-alb-association.png
-│   ├── 15-asg.png
-│   ├── 16-ASG-scaling-policy.png
-│   ├── 17-cloudwatch-alarms.png
-│   ├── 17-cloudwatch-low-in-alarm.png
-│   ├── 18-ASG-1-healthy-instance.png
-│   ├── 18-EC2-1-running-instance.png
-│   ├── 18-TargetGroup-1healthy-instance.png
-│   ├── 18-Webhost-instance1.png
-│   ├── 19-cloudwatch-high-in-alarm.png
-│   ├── 19-targetGroup-2healthyinstances.png
+│   ├── 01-stack-created.png
+│   ├── 01-ec2-instance-running.png
+│   ├── 05-ec2-access-public-dns.png
+│   ├── 06-ami-available.png
+│   ├── 10-launch-template-config.png
+│   ├── 11-alb-created.png
+│   ├── 12-target-group-config.png
+│   ├── 13-alb-listener-config.png
+│   ├── 14-alb-target-group-linked.png
+│   ├── 15-asg-config.png
+│   ├── 16-asg-scaling-policy.png
+│   ├── 17-cloudwatch-alarms-overview.png
+│   ├── 17-cloudwatch-low-alarm.png
+│   ├── 18-asg-1-healthy.png
+│   ├── 18-ec2-1-running.png
+│   ├── 18-target-group-1-healthy.png
+│   ├── 18-webhost-instance1.png
+│   ├── 19-cloudwatch-high-alarm.png
+│   ├── 19-target-group-2-healthy.png
 │   ├── 19-webhost-instance2.png
-│   ├── 20-EC2-3-running-instances.png
-│   ├── 20-targetgroup-3healthyinstances.png
+│   ├── 20-ec2-3-running.png
+│   ├── 20-target-group-3-healthy.png
 │   ├── 20-webhost-3instances.png
-│   ├── 21-cloudwatch-lowCpu-inalarm.png
-│   ├── 21-targetgroup-1draining-instance.png
-│   ├── 22-hosted-zone.png
-│   ├── 23-A-record.png
-│   ├── 23-Arecord2.png
-│   └── 24-ALBurl-access.png
-└── target-tracking-config.json
+│   ├── 21-cloudwatch-scale-in-alarm.png
+│   ├── 21-target-group-draining.png
+│   ├── 22-route53-hosted-zone.png
+│   ├── 23-route53-a-record.png
+│   └── 24-alb-url-access.png
 ```
 
-- [`README.md`](README.md) Provides a step-by-step guide for creating .... << TBD >>
+---
+
+### Project Repository File Overview
+
+| Filename | Description |
+|----------|-------------|
+| [`README.md`](README.md) | Step-by-step guide for deploying a scalable AWS architecture using EC2, Auto Scaling Groups, ALB, and Route 53. Includes CLI commands, screenshots, and cleanup instructions. |
+| [`EC2-Auto-Scaling-Lab.yaml`](EC2-Auto-Scaling-Lab.yaml) | CloudFormation template used to provision the initial EC2 instance and supporting resources. |
+| [`config.sh`](config.sh) | Environment configuration script that defines required variables such as VPC ID, subnet IDs, security group ID, and AMI ID. These values must be customized to match your AWS setup before executing any dependent CLI commands or templates. |
+| [`images/`](images/) | Contains screenshots documenting each step of the implementation and verification process. Filenames are named for clarity and execution order. |
+
+
+---
+
+### Screenshot Files in `images/` Folder
+
+| Filename | Description |
+|----------|-------------|
+| [`01-stack-created.png`](images/01-stack-created.png) | CloudFormation stack successfully created |
+| [`01-ec2-instance-running.png`](images/01-ec2-instance-running.png) | EC2 instance launched and running |
+| [`05-ec2-access-public-dns.png`](images/05-ec2-access-public-dns.png) | Accessing EC2 via public DNS |
+| [`06-ami-available.png`](images/06-ami-available.png) | Custom AMI visible in AWS Console |
+| [`10-launch-template-config.png`](images/10-launch-template-config.png) | Launch Template configuration |
+| [`11-alb-created.png`](images/11-alb-created.png) | Application Load Balancer setup |
+| [`12-target-group-config.png`](images/12-target-group-config.png) | Target Group configuration |
+| [`13-alb-listener-config.png`](images/13-alb-listener-config.png) | Listener setup for ALB |
+| [`14-alb-target-group-linked.png`](images/14-alb-target-group-linked.png) | ALB linked to Target Group |
+| [`15-asg-config.png`](images/15-asg-config.png) | Auto Scaling Group configuration |
+| [`16-asg-scaling-policy.png`](images/16-asg-scaling-policy.png) | Scaling policy setup |
+| [`17-cloudwatch-alarms-overview.png`](images/17-cloudwatch-alarms-overview.png) | CloudWatch alarms overview |
+| [`17-cloudwatch-low-alarm.png`](images/17-cloudwatch-low-alarm.png) | Low CPU alarm triggered |
+| [`18-asg-1-healthy.png`](images/18-asg-1-healthy.png) | ASG with one healthy instance |
+| [`18-ec2-1-running.png`](images/18-ec2-1-running.png) | One EC2 instance running |
+| [`18-target-group-1-healthy.png`](images/18-target-group-1-healthy.png) | Target Group with one healthy instance |
+| [`18-webhost-instance1.png`](images/18-webhost-instance1.png) | Web page served by first instance |
+| [`19-cloudwatch-high-alarm.png`](images/19-cloudwatch-high-alarm.png) | High CPU alarm triggered |
+| [`19-target-group-2-healthy.png`](images/19-target-group-2-healthy.png) | Target Group with two healthy instances |
+| [`19-webhost-instance2.png`](images/19-webhost-instance2.png) | Web page served by second instance |
+| [`20-ec2-3-running.png`](images/20-ec2-3-running.png) | Three EC2 instances running |
+| [`20-target-group-3-healthy.png`](images/20-target-group-3-healthy.png) | Target Group with three healthy instances |
+| [`20-webhost-3instances.png`](images/20-webhost-3instances.png) | Web pages served by all three instances |
+| [`21-cloudwatch-scale-in-alarm.png`](images/21-cloudwatch-scale-in-alarm.png) | Scale-in alarm triggered |
+| [`21-target-group-draining.png`](images/21-target-group-draining.png) | Instance draining during scale-in |
+| [`22-route53-hosted-zone.png`](images/22-route53-hosted-zone.png) | Hosted zone setup in Route 53 |
+| [`23-route53-a-record.png`](images/23-route53-a-record.png) | A record pointing domain to ALB |
+| [`24-alb-url-access.png`](images/24-alb-url-access.png) | Application accessed via ALB DNS URL |
 
 ## Prerequisites
-- Before running the commands, set the required variables `config.sh`
+
+Before running any commands, ensure the required environment variables are defined in [`config.sh`](config.sh). These variables customize your AWS setup and are sourced before execution.
+
+### Sample `config.sh`
+
 ```bash
-$ cat config.sh
-# AWS CLI default region for all commands
+# AWS CLI default region
 export AWS_DEFAULT_REGION=us-west-2  # Oregon region, for sandbox/testing
 
 # Security Group names
-ASG_EC2_SG_NAME="M4-ASG-SecurityGroup"       # Security group for Auto Scaling Group instances
-ALB_SG_NAME="M4-ALB-SecurityGroup"  # Security group for Application Load Balancer
+ASG_EC2_SG_NAME="M4-ASG-SecurityGroup"       # For Auto Scaling Group instances
+ALB_SG_NAME="M4-ALB-SecurityGroup"           # For Application Load Balancer
 
 # Launch template and AMI naming
 LAUNCH_TEMPLATE_NAME="M4-SCALING-LAUNCH-TEMPLATE"
 AMI_NAME="M4-AMI"
 
-# Key pair details for EC2 instance access
+# EC2 key pair details
 KEY_NAME="M4-KeyPair"
-PEM_FILE="${KEY_NAME}.pem"           # Private key file for SSH access
+PEM_FILE="${KEY_NAME}.pem"                   # Private key for SSH access
 
-# Target Group and Load Balancer names
+# Target Group and Load Balancer
 ASG_TARGET_GROUP="M4-ASG-TargetGroup"
 ALB_NAME="M4-ALB"
 
-# Auto Scaling Group name and scaling policy
+# Auto Scaling Group and scaling policies
 ASG_NAME="M4-AutoScalingGroup"
 ASG_SCALEOUT_POLICY_NAME="M4-ASG-Cpu-ScaleOut-Policy"
 ASG_SCALEIN_POLICY_NAME="M4-ASG-Cpu-ScaleIn-Policy"
 
-# CloudFormation Stack name
+# CloudFormation stack
 CF_STACK_NAME="M4-CF-Stack"
 
-# Cloudwatch alarms Names
-# CPU>80%
-CLOUDWATCH_HIGH_CPU_ALARM="$ASG_NAME-HighCPUAlarm"
-# CPU<60%
-CLOUDWATCH_LOW_CPU_ALARM="$ASG_NAME-LowCPUAlarm"
-
-$ 
+# CloudWatch alarms
+CLOUDWATCH_HIGH_CPU_ALARM="$ASG_NAME-HighCPUAlarm"  # CPU > 80%
+CLOUDWATCH_LOW_CPU_ALARM="$ASG_NAME-LowCPUAlarm"    # CPU < 60%
 ```
+
+### Load the Variables
 
 ```bash
-# Load the variables
 source config.sh
 ```
+
 
 ## Environment Setup and Configuration
 This section details how to initialize the AWS environment with region-specific settings, such as the default VPC, subnet IDs, and the client's public IP address. These configurations are essential prerequisites for subsequent deployment steps.
@@ -303,16 +332,17 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-*Wait for stack creation to complete before proceeding.*
-![CloudFormation stack creation success](images/01-cf-aws-console-create-stack-success.png)
+*AWS Console: Wait for stack creation to complete before proceeding.*
 
-### Verify EC2 Instance Launch
+![CloudFormation stack creation success](images/01-stack-created.png)
 
-- Confirm the EC2 instance launched by the stack is in the running state via the AWS Console or CLI.  
+*AWS Console: EC2 instance launched by the stack is in the running state.*  
+
 ![EC2 instance running](images/01-ec2-instance-running.png)
 
-- Access the instance using its public DNS in a web browser to verify the web service is active.  
-![EC2 instance access via public DNS](images/05-ec2-instance-accessed-using-public-dns.png)
+*Screenshot: Client-Side Browser Accessing the Instance Web Service*
+
+![EC2 instance access via public DNS](images/05-ec2-access-public-dns.png)
 
 ### Create a Custom AMI from the Running Instance
 
@@ -326,8 +356,9 @@ AMI_ID=$(aws ec2 create-image --instance-id $INSTANCE_ID --name $AMI_NAME --desc
 echo "Created AMI ID: $AMI_ID"
 ```
 
-*AMI availability confirmation:*  
-![AMI available in AWS console](images/06-02-aws-console-ami-available.png)
+*AWS console: AMI availability confirmation:*
+
+![AMI available in AWS console](images/06-ami-available.png)
 
 After confirming AMI creation, delete the CloudFormation stack to remove temporary resources such as the EC2 instance and associated networking components.
 
@@ -358,7 +389,9 @@ aws ec2 create-launch-template \
   }"
 ```
 
-![alt text](images/10-launch-template.png)
+*AWS Console: Launch Template Created:*  
+
+![alt text](images/10-launch-template-config.png)
 
 ###  Create an Internet-facing Application Load Balancer (ALB)
 ```bash
@@ -372,7 +405,9 @@ ALB_ARN=$(aws elbv2 create-load-balancer \
   --output text)
 ```
 
-![alt text](images/11-load-balancer.png)
+*AWS Console: Load Balancer Created:*  
+
+![alt text](images/11-alb-created.png)
 
 
 <!--
@@ -398,7 +433,9 @@ TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
   --output text)
 ```
 
-![alt text](images/12-target-group.png)
+*AWS Console: Target Group Created:*  
+
+![alt text](images/12-target-group-config.png)
 
 
 ### Create a Listener on the ALB forwarding traffic to your Target Group
@@ -413,10 +450,13 @@ LISTENER_ARN=$(aws elbv2 create-listener \
   --query 'Listeners[0].ListenerArn' \
   --output text)
 ```
-![alt text](images/13-load-balancer-listener.png)
+*AWS Console: Load balancer listener with associated target group:*  
 
+![alt text](images/13-alb-listener-config.png)
 
-![alt text](images/14-target-group-alb-association.png)
+*AWS Console: Target group associated with Load balancer:*  
+
+![alt text](images/14-alb-target-group-linked.png)
 
 <!--
 You have created a Launch Template, which defines the parameters of the instances launched. Now we will create an Auto Scaling Group so that you can define how many EC2 instances should be launched and where to launch them.
@@ -435,10 +475,16 @@ aws autoscaling create-auto-scaling-group \
   --health-check-grace-period 120 \
   --tags Key=Name,Value=MyAutoScalingInstance,PropagateAtLaunch=true
 ```
-![alt text](images/15-asg.png)
+
+*AWS Console: Auto Scaling Group associated with Launch template:*  
+
+![alt text](images/15-asg-config.png)
+
+### Define Auto Scaling Policies for Dynamic Scaling
+To enable elastic scaling in response to load, define scaling policies that adjust the number of instances based on CPU utilization.
 
 ```bash
-# Scale out policy
+# Scale-out policy: Increase capacity by 1 when threshold exceeded
 SCALE_OUT_POLICY_ARN=$(aws autoscaling put-scaling-policy \
   --auto-scaling-group-name $ASG_NAME \
   --policy-name $ASG_SCALEOUT_POLICY_NAME \
@@ -447,7 +493,7 @@ SCALE_OUT_POLICY_ARN=$(aws autoscaling put-scaling-policy \
   --step-adjustments MetricIntervalLowerBound=0,ScalingAdjustment=1 \
   --query PolicyARN --output text)
 
-# Scale in policy
+# Scale-in policy: Decrease capacity by 1 when load is low
 SCALE_IN_POLICY_ARN=$(aws autoscaling put-scaling-policy \
   --auto-scaling-group-name $ASG_NAME \
   --policy-name $ASG_SCALEIN_POLICY_NAME \
@@ -456,82 +502,133 @@ SCALE_IN_POLICY_ARN=$(aws autoscaling put-scaling-policy \
   --step-adjustments MetricIntervalUpperBound=0,ScalingAdjustment=-1 \
   --query PolicyARN --output text)
 ```
+*AWS Console: Scaling policies attached to the ASG, visualizing scaling behavior triggers*
 
-![alt text](images/16-ASG-scaling-policy.png)
+![alt text](images/16-asg-scaling-policy.png)
+
+### Set Up CloudWatch Alarms for Dynamic Scaling
+
+Create CloudWatch alarms to monitor Auto Scaling Group's average CPU utilization and dynamically trigger scaling actions
 
 ```bash
-# High CPU alarm (>80%)
+# High CPU Alarm: Triggers the scale-out policy when CPU utilization exceeds 80% for 2 consecutive minutes
 aws cloudwatch put-metric-alarm --alarm-name $CLOUDWATCH_HIGH_CPU_ALARM \
   --metric-name CPUUtilization --namespace AWS/EC2 --statistic Average --period 60 --threshold 80 \
   --comparison-operator GreaterThanThreshold --evaluation-periods 2 \
   --dimensions Name=AutoScalingGroupName,Value=$ASG_NAME \
   --alarm-actions $SCALE_OUT_POLICY_ARN
 
-# Low CPU alarm (<60%)
+# Low CPU Alarm: Triggers the scale-in policy when CPU utilization falls below 60% for 2 consecutive minutes
 aws cloudwatch put-metric-alarm --alarm-name $CLOUDWATCH_LOW_CPU_ALARM \
   --metric-name CPUUtilization --namespace AWS/EC2 --statistic Average --period 60 --threshold 60 \
   --comparison-operator LessThanThreshold --evaluation-periods 2 \
   --dimensions Name=AutoScalingGroupName,Value=$ASG_NAME \
   --alarm-actions $SCALE_IN_POLICY_ARN
 ```
-![alt text](images/17-cloudwatch-alarms.png)
 
-# First EC2 instance started by ASG
-![alt text](images/18-ASG-1-healthy-instance.png)
+*AWS Console: View of CloudWatch Alarms monitoring scaling conditions*
 
-### ASG Spawns first EC2 instance
-Target group showing one healthy instance
-![alt text](images/18-TargetGroup-1healthy-instance.png)
+![alt text](images/17-cloudwatch-alarms-overview.png)
 
-EC2 console showing running instance
-![alt text](images/18-EC2-1-running-instance.png)
+Auto Scaling Group automatically launches the first EC2 instance according to the desired capacity and scaling policies.
 
-First EC2 instance accessible from the web through the ALB
-![alt text](images/18-Webhost-instance1.png)
+*AWS Console: Confirmation of a healthy instance availability in ASG*
+
+![alt text](images/18-asg-1-healthy.png)
+
+The Target Group reflects one healthy EC2 instance registered by the ASG, confirming successful integration between the ASG and Application Load Balancer.
+
+*AWS Console: Target group confirmation of the newly started healthy instance*
+
+![alt text](images/18-target-group-1-healthy.png)
+
+*AWS Console: EC2 console view of the running instance*
+
+![alt text](images/18-ec2-1-running.png)
+
+Verify the instance's web service is publicly accessible through the ALB, confirming correct networking and load balancing configuration.
+
+*Screenshot: Client-Side Browser Accessing the Instance Web Service*
+
+![alt text](images/18-webhost-instance1.png)
 
 At the bottom of the page click on the Start CPU Load Generation link. Once the CPU load goes above 80% for a sustained period the Auto Scaling policy will begin spinning up the instances specified in the launch template to meet demand.
 
-CLoudwatch showing detection of CPU high load alarm
-![alt text](images/19-cloudwatch-high-in-alarm.png)
+CloudWatch continuously monitors CPU utilization and detects when the threshold exceeds 80%, transitioning the alarm state to IN ALARM. This event initiates the scaling action.
 
-### ASG Spawns second EC2 instance
-Second instance spawned, Target group shows 2 healthy instances 
-![alt text](images/19-targetGroup-2healthyinstances.png)
+*AWS Console: CloudWatch Detection of High CPU Load Alarm*
 
-Second EC2 instance accessible from the web through the ALB
+![alt text](images/19-cloudwatch-high-alarm.png)
+
+Following the alarm trigger, the ASG launches a second EC2 instance. The ALB target group now displays two healthy instances, confirming successful scaling.
+
+*AWS Console: Target Group with Two Healthy Instances*
+
+![alt text](images/19-target-group-2-healthy.png)
+
+The new instance is also accessible through the ALB, ensuring continuous availability and load distribution.
+
+*Screenshot: Client Web Access to Second Instance*
+
 ![alt text](images/19-webhost-instance2.png)
 
-Generate CPU load on the second instance by clicking on the Start CPU Load Generation link.
+Generate CPU load on the second instance by clicking on the Start CPU Load Generation link. As the CPU load continues to increase beyond the scaling threshold, the Auto Scaling Group (ASG) launches a third EC2 instance to handle the additional demand.
 
-### ASG Spawns third EC2 instance
-Target group showing three running instances
-![alt text](images/20-targetgroup-3healthyinstances.png)
+The Target Group now shows three healthy instances, confirming the successful registration and health of all instances behind the Application Load Balancer.
 
-EC2 console showing three running instances
-![alt text](images/20-EC2-3-running-instances.png)
+*AWS Console: Target Group with Three Healthy Instances*
 
-Three EC2 instance accessible from the web through the ALB
+![alt text](images/20-target-group-3-healthy.png)
+
+EC2 console lists three running instances, reflecting the current scaled-out state of the infrastructure.
+
+*AWS Console: EC2 Console Showing Three Running Instances*
+![alt text](images/20-ec2-3-running.png)
+
+All the three EC2 instances are accessible from the web through the ALB, demonstrating successful load distribution and redundancy.
+
+*Screenshot: Client Web Access to all Three Instances*
+
 ![alt text](images/20-webhost-3instances.png)
 
-### Now stop loading the CPU, wait for sometime for the CPU load to reduce
-CLoudwatch showing detection of CPU low load alarm
-![alt text](images/21-cloudwatch-lowCpu-inalarm.png)
+Stop the CPU Load and Observe Scale-In Behavior
 
-Target group showing one host in draining state
-![alt text](images/21-targetgroup-1draining-instance.png)
+After stopping the CPU load generation on the instance, allow some time for the CPU utilization to decrease. As the demand reduces, CloudWatch detects the drop in CPU usage and triggers the low CPU alarm.
+
+*AWS Console: CloudWatch Low CPU Alarm in Alarm State*
+
+![alt text](images/21-cloudwatch-scale-in-alarm.png)
+
+Following the low CPU alarm, the Auto Scaling Group initiates scale-in by terminating surplus instances. The Target Group shows one instance in the draining state, indicating it is gracefully being deregistered to complete any in-flight requests before termination.
+
+*AWS Console: Target Group Showing One Draining Instance*
+
+![alt text](images/21-target-group-draining.png)
+
+### Route Traffic to the Company’s Domain
+
+To route user traffic to a company-owned domain, register your domain and create a hosted zone in Amazon Route 53.
+
+Create a Hosted Zone: Set up a hosted zone in Route 53 matching your registered domain name to manage DNS records.
+
+*AWS Console: Route 53 Hosted Zone*
+
+![alt text](images/22-route53-hosted-zone.png)
+
+Create an A record (or Alias record) pointing to your Application Load Balancer (ALB), ensuring that requests to your domain are routed correctly.
+
+*AWS Console: Route53 `A Record` Setup*
+
+![alt text](images/23-route53-a-record.png)
 
 
-### Route the traffic to the `company's domain`
-Register the domain and configure the domain in route53 hosted zone
-![alt text](images/22-hosted-zone.png)
+To avoid extra costs and simplify testing during this academic assignment, the ALB’s public DNS name (e.g., dualstack.m4-alb-983363029.us-west-2.elb.amazonaws.com) is used directly for access and testing.
 
-Set the A record
-![alt text](images/23-Arecord2.png)
+In a production environment, this DNS name should be mapped to a company-owned custom domain either via Route 53 or through an external DNS registrar.
 
+*Screenshot: Client Web Access to ALB via Public DNS*
 
-To avoid unnecessary cost and for academic purposes, I have used the ALB’s public DNS name directly (e.g., `dualstack.m4-alb-...elb.amazonaws.com`). In a production setup, this would be mapped to a company-owned domain via Route 53 or an external registrar
-![alt text](images/24-ALBurl-access.png)
-
+![alt text](images/24-alb-url-access.png)
 
 
 ### Cleanup section
