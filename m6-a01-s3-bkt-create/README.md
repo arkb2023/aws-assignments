@@ -1,4 +1,9 @@
-```markdown
+![Configuration via AWS CLI](https://img.shields.io/badge/Configuration-AWS%20CLI-blue?logo=amazon-aws)
+![Shell Scripted](https://img.shields.io/badge/Scripted-Bash-green?logo=gnu-bash)
+![Verified via Console](https://img.shields.io/badge/Verified-AWS%20Console-yellow?logo=amazon-aws)
+![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
+
+
 ## Module 6: S3 Bucket Creation
 
 ### Problem Statement
@@ -7,34 +12,80 @@ You work for XYZ Corporation. Their application requires a storage service that 
 ### Tasks To Be Performed
 1. Create an S3 Bucket for file storage.  
 2. Upload 5 objects with different file extensions.
-```
----
 
-### Solution
+### Prequisite
 ```bash
 # Set AWS region
 export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
 ```
+
+### Project Repository File Overview
+
+```bash
+$ tree
+.
+├── README.md
+├── example.csv
+├── example.jpg
+├── example.pdf
+├── example.txt
+├── example.zip
+└── images
+    ├── 01-bucket-created.png
+    └── 02-objects-uploaded.png
+```
+
+| Filename | Description |
+|----------|-------------|
+| [`README.md`](README.md) | Documentation outlining the S3 bucket creation, object uploads, and validation steps. Includes screenshots and sample files for testing. |
+| [`example.csv`](example.csv) | Sample CSV file uploaded to the S3 bucket for demonstration. |
+| [`example.jpg`](example.jpg) | Sample image file used to validate object upload and access. |
+| [`example.pdf`](example.pdf) | Sample PDF file included for multi-format object testing. |
+| [`example.txt`](example.txt) | Plain text file used to verify basic object storage. |
+| [`example.zip`](example.zip) | Compressed archive uploaded to test binary object handling. |
+| [`images/`](images/) | Contains screenshots documenting bucket creation and object upload steps. Filenames are numbered for clarity and execution order. |
+
+### Screenshot Files in `images/` Folder
+
+| Filename | Description |
+|----------|-------------|
+| [`01-bucket-created.png`](images/01-bucket-created.png) | S3 bucket successfully created in the AWS Console |
+| [`02-objects-uploaded.png`](images/02-objects-uploaded.png) | Multiple objects uploaded and visible in the bucket listing |
+
+
 ```bash
 # Generate a unique bucket name
 bkt_name=bkt-$(date +%Y%m%d%H%M%S)
+```
+
+```bash
 echo $bkt_name
-# Example output:
+# output:
 bkt-20250830140412
 ```
+
+
 ### Create S3 bucket
 ```bash
 aws s3api create-bucket --region $AWS_DEFAULT_REGION --bucket $bkt_name \
     --create-bucket-configuration LocationConstraint=$AWS_DEFAULT_REGION
-# Example output:
+```
+```bash
+# output:
 {
     "Location": "http://bkt-20250830140412.s3.amazonaws.com/"
 }
 ```
+*AWS Console: S3 bucket created*
+
+![S3 bucket created](images/01-bucket-created.png)
+
 ```bash
 # List buckets
 aws s3api list-buckets --query "Buckets[].Name"
-# Example output:
+```
+```bash
+# output:
 [
     "bkt-20250830140412"
 ]
@@ -42,83 +93,54 @@ aws s3api list-buckets --query "Buckets[].Name"
 
 ---
 
-### Upload objects
-```bash
-ls -ltr
-# Example output:
--rw-r--r-- 1 arkane arkane 102602 Sep  5  2021 example.pdf
--rw-r--r-- 1 arkane arkane  48396 Nov 21  2022 example.jpg
--rw-r--r-- 1 arkane arkane   1520 Mar 18  2023 index.html
--rw-r--r-- 1 arkane arkane    232 Jul 15  2024 example.txt
--rw-r--r-- 1 arkane arkane  15799 Jul 15  2024 example.csv
--rw-r--r-- 1 arkane arkane   5249 Aug 30 07:33 README.md
--rw-r--r-- 1 arkane arkane    783 Aug 30 09:13 error.html
--rw-r--r-- 1 arkane arkane 123422 Aug 30 09:16 example.zip
-```
+### Upload local objects to S3
 
----
-
+Upload  `example.pdf`
 ```bash
 aws s3api put-object --bucket $bkt_name --key example.pdf --body example.pdf
-# Example output:
-{
-    "ETag": "\"b1157391bc54f3a3b5289fbd65e1a0eb\"",
-    "ChecksumCRC32": "rIQILg==",
-    "ChecksumType": "FULL_OBJECT",
-    "ServerSideEncryption": "AES256"
-}
 ```
+
+Upload  `example.jpg`
 ```bash
 aws s3api put-object --bucket $bkt_name --key example.jpg --body example.jpg
-# Example output:
-{
-    "ETag": "\"5df5fcf3b7bcbaf320081517b2aea397\"",
-    "ChecksumCRC32": "I8Hp4Q==",
-    "ChecksumType": "FULL_OBJECT",
-    "ServerSideEncryption": "AES256"
-}
 ```
+
+Upload `example.txt`
 ```bash
 aws s3api put-object --bucket $bkt_name --key example.txt --body example.txt
-# Example output:
-{
-    "ETag": "\"d7a96bb599e6e9d6d9eb7368f0cfb6f4\"",
-    "ChecksumCRC32": "GB+HSg==",
-    "ChecksumType": "FULL_OBJECT",
-    "ServerSideEncryption": "AES256"
-}
 ```
+
+Upload `example.csv`
 ```bash
 aws s3api put-object --bucket $bkt_name --key example.csv --body example.csv
-# Example output:
-{
-    "ETag": "\"2229607d9006b37d3dae647e63d8b1b6\"",
-    "ChecksumCRC32": "40Ibrw==",
-    "ChecksumType": "FULL_OBJECT",
-    "ServerSideEncryption": "AES256"
-}
 ```
+
+Upload `example.zip`
 ```bash
 aws s3api put-object --bucket $bkt_name --key example.zip --body example.zip
-# Example output:
-{
-    "ETag": "\"1b39c3661286772bb74f40360e57de5d\"",
-    "ChecksumCRC32": "b3MBLQ==",
-    "ChecksumType": "FULL_OBJECT",
-    "ServerSideEncryption": "AES256"
-}
 ```
 
----
+### From AWS Console, Verify five objects uploaded to S3 bucket
+![File1 uploaded to S3 bucket](images/02-objects-uploaded.png)
 
-### Verify Uploaded Files
+### From AWS CLI, Verify five objects uploaded to S3 bucket
 
 ```bash
 aws s3 ls s3://$bkt_name/
-# Example output:
+```
+```bash
+# output:
 2025-08-30 09:24:32      15799 example.csv
 2025-08-30 09:23:08      48396 example.jpg
 2025-08-30 09:22:07     102602 example.pdf
 2025-08-30 09:24:04        232 example.txt
 2025-08-30 09:24:50     123422 example.zip
 ```
+<!--
+# Cleanup
+aws s3api delete-object --bucket $bkt_name --key example.pdf
+aws s3api delete-object --bucket $bkt_name --key example.txt
+aws s3api delete-object --bucket $bkt_name --key example.jpg
+aws s3api delete-object --bucket $bkt_name --key example.csv
+aws s3api delete-object --bucket $bkt_name --key example.zip
+-->
