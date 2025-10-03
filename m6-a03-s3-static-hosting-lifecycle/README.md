@@ -1,5 +1,4 @@
 
-```markdown
 ## Module 6: S3 Website Hosting
 
 ### Problem Statement
@@ -12,37 +11,102 @@ can store files and publicly share them if required. Implement S3 for the same.
     a. Transition from Standard to Standard-IA in 60 days
     b. Expiration in 200 days
 
-```
+
 ---
-### Solution
+
+### Prequisite
 ```bash
 # Set AWS region
 export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
 ```
----
-### Prequisite
+Create bucket and upload files as described here  - [`README.md`](../m6-a01-s3-bkt-create/README.md)  
+Enable versioning for the bucket as described here  - [`README.md`](../m6-a02-s3-bkt-version/README.md) 
+
+### Project Repository File Overview
+This section summarizes the key files included in the project repository. Each file serves a specific purpose in configuring, hosting, and validating a static website on Amazon S3. The structure is organized for clarity, with configuration templates, HTML files, policy definitions, and screenshots grouped for easy reference.
+
+```bash
+$ tree
+.
+├── README.md
+├── block-public-access.json
+├── delete_s3_objects.py
+├── error.html
+├── images
+│   ├── 01-static-website-hosting-disabled.png
+│   ├── 02-static-website-hosting-enabled.png
+│   ├── 03-website-files-uploaded.png
+│   ├── 04-block-public-access-disabled.png
+│   ├── 05-bucket-policy.png
+│   ├── 06-webclient-access.png
+│   ├── 07-access-error.png
+│   ├── 08-lifecycle-rules.png
+│   └── 09-lifecycle-config.png
+├── index.html
+├── lifecycle.json
+├── public-read-policy.json
 ```
-Create bucket and upload files as per 
-  i) <repo>/m6-a01-s3-bkt-create/README.md
-  ii) <repo>/m6-a02-s3-bkt-create/README.md
-```
-## Enable Static Website Hosting on S3 Bucket
+
+### Project Repository File Overview
+
+| Filename | Description |
+|----------|-------------|
+| [`README.md`](README.md) | Documentation outlining the S3 static website setup, bucket policies, lifecycle rules, and access control. Includes AWS CLI commands, screenshots, and cleanup instructions. |
+| [`block-public-access.json`](block-public-access.json) | JSON configuration to disable S3 bucket public access settings. |
+| [`public-read-policy.json`](public-read-policy.json) | Bucket policy granting public read access to objects — used for static website hosting. |
+| [`index.html`](index.html) | Default landing page for the S3-hosted static website. |
+| [`error.html`](error.html) | Custom error page displayed when access is denied or a resource is missing. |
+| [`lifecycle.json`](lifecycle.json) | JSON configuration defining lifecycle rules for automatic object transitions or expiration. |
+| [`delete_s3_objects.py`](delete_s3_objects.py) | Python script to delete objects from an S3 bucket — useful for cleanup |
+| [`images/`](images/) | Contains screenshots documenting each step of the S3 website setup and policy configuration. Filenames are numbered for clarity and execution order. |
+
+### Screenshot Files in `images/` Folder
+
+| Filename | Description |
+|----------|-------------|
+| [`01-static-website-hosting-disabled.png`](images/01-static-website-hosting-disabled.png) | S3 bucket with static website hosting initially disabled |
+| [`02-static-website-hosting-enabled.png`](images/02-static-website-hosting-enabled.png) | Static website hosting enabled in S3 bucket properties |
+| [`03-website-files-uploaded.png`](images/03-website-files-uploaded.png) | `index.html` and `error.html` files uploaded to the S3 bucket |
+| [`04-block-public-access-disabled.png`](images/04-block-public-access-disabled.png) | Block Public Access settings disabled to allow web access |
+| [`05-bucket-policy.png`](images/05-bucket-policy.png) | Bucket policy granting public read access to website files |
+| [`06-webclient-access.png`](images/06-webclient-access.png) | Website successfully accessed via public S3 endpoint |
+| [`07-access-error.png`](images/07-access-error.png) | Custom error page displayed when accessing restricted content |
+| [`08-lifecycle-rules.png`](images/08-lifecycle-rules.png) | Lifecycle rules configured for object expiration and transition |
+| [`09-lifecycle-config.png`](images/09-lifecycle-config.png) | JSON configuration for lifecycle rules applied to the bucket |
+
+
+## Static Website Hosting on S3 Bucket
+
+*AWS Console: Static hosting disabled by default*
+
+![Static hosting disabled](images/01-static-website-hosting-disabled.png)
+
+Use AWS CLI to enable Static Website Hosting on S3 Bucket
 ```bash
 aws s3 website s3://$bkt_name/ --index-document index.html --error-document error.html
 ```
 
----
+*AWS Console: Static hosting enabled*
+
+![Static hosting enabled](images/02-static-website-hosting-enabled.png)
 
 ## Upload Website Files
 
 ```bash
 aws s3 cp index.html s3://$bkt_name/index.html
+```
+```bash
 aws s3 cp error.html s3://$bkt_name/error.html
 ```
 
+*AWS Console: Website files `index.html` and `error.html` uploaded to S3 bucket*
+
+![objects uploaded to S3 bucket](images/03-website-files-uploaded.png)
+
 ---
 
-## Disable Block Public Access at Bucket Level
+
+By default, new buckets have public access blocked to protect your data. The [`JSON configuration`](block-public-access.json) shown below disables all four Block Public Access settings for the specified bucket, allowing ACLs and bucket policies to define the access.
 
 ### `block-public-access.json`
 
@@ -55,15 +119,18 @@ aws s3 cp error.html s3://$bkt_name/error.html
 }
 ```
 
-### Apply Settings
+### Apply the Settings
 
 ```bash
 aws s3api put-public-access-block --bucket $bkt_name --public-access-block-configuration file://block-public-access.json
 ```
 
----
+*AWS Console: S3 bucket public access enabled*
+
+![public access enabled to S3 bucket](images/04-block-public-access-disabled.png)
 
 ## Make Objects Publicly Readable
+The [`JSON configuration`](public-read-policy.json) below defines a bucket policy that grants the `s3:GetObject` permission to all users `(Principal: "*")` to allow public read access to the objects within the bucket. This policy enables anyone on the internet to retrieve objects from the bucket, making it suitable for publicly available content such as static websites or shared files.
 
 ### `public-read-policy.json`
 
@@ -82,15 +149,17 @@ aws s3api put-public-access-block --bucket $bkt_name --public-access-block-confi
 }
 ```
 
-### Replace Placeholder and Apply Policy
-
+Replace Placeholder `<bkt-name>` with the actual bucket name
 ```bash
 sed "s/<bkt_name>/$bkt_name/g" public-read-policy.json > tmp-policy.json
+```
+
+Check the updated bucket name
+```bash
 cat tmp-policy.json
 ```
 
 Output:
-
 ```json
 {
   "Version": "2012-10-17",
@@ -106,9 +175,14 @@ Output:
 }
 ```
 
+Apply the policy on the bucket
 ```bash
 aws s3api put-bucket-policy --bucket $bkt_name --policy file://tmp-policy.json
 ```
+
+*AWS Console: S3 bucket shows the configured polcy*
+
+![S3 bucket policy applied](images/05-bucket-policy.png)
 
 ---
 
@@ -133,66 +207,55 @@ Output:
 
 ---
 
-## Test Website Access
 
-### Fetch `index.html`
+### Test Website Access from a Web Browser and Verify `index.html` is Returned
+Open a web browser and navigate to the website URL. Verify that the default landing page `index.html` loads successfully, confirming proper web server and load balancer configuration.
 
-```bash
-curl -i http://$bkt_name.s3-website-$AWS_DEFAULT_REGION.amazonaws.com | head -n 20
-```
+*Screenshot: Client-Side Web Browser Access to the Website*
 
-Output:
+![Website index page](images/06-webclient-access.png)
 
-```
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  1520  100  1520    0     0   2010      0 --:--:-- --:--:-- --:--:--  2010
-HTTP/1.1 200 OK
-x-amz-id-2: pzWAY78AQZINJLRzKaICBkryxULNG9zFEwH9zcn/f/HULsmlz7eo5WYo1u5UHboFin8znh76ZDo=
-x-amz-request-id: 763T7BTQ1ABR3Z30
-Date: Sat, 30 Aug 2025 17:39:58 GMT
-Last-Modified: Sat, 30 Aug 2025 17:18:36 GMT
-x-amz-version-id: SeOtZt8JQiiKy5dJaAjyMMU4fJaVXzEU
-ETag: "7e2277780fd6a5a42d74dc17dc744ff0"
-Content-Type: text/html
-Content-Length: 1520
-Server: AmazonS3
+### Test Website Returns `error.html` for Non-Existent Pages
+Access a non-existent page on the website to test the custom error handling. The server should return the configured `error.html` page, demonstrating correct error response setup for invalid URLs.
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample file for testing</title>
-    <META NAME="robots" CONTENT="noindex,nofollow">
-</head>
-```
+*Screenshot: Client-Side Web Browser Displaying Error Page*
 
----
-
-### Test Error Page
-
-```bash
-curl -i http://$bkt_name.s3-website-$AWS_DEFAULT_REGION.amazonaws.com/nonexistent.html | head -n 5
-```
-
-Output:
-
-```
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   783  100   783    0     0   1022      0 --:--:-- --:--:-- --:--:--  1022
-HTTP/1.1 404 Not Found
-Last-Modified: Sat, 30 Aug 2025 17:18:31 GMT
-x-amz-version-id: .L9k0FWwLSaSADXyntupnchyLRTQOSG4
-ETag: "aacf4ed89973dad8c5bd0945b81efee5"
-x-amz-error-code: NoSuchKey
-```
+![Website error page](images/07-access-error.png)
 
 ---
 
 ## Lifecycle Configuration
+
+The [`JSON configuration`](lifecycle.json) below defines two rules to manages storage and retention of objects in the bucket:  
+1. Transition Rule: Move Objects to Standard-Infrequent Access (STANDARD_IA) Storage Class after 60 Days  
+2. Expiration Rule: Delete Objects after 200 Days  
+
+### `lifecycle.json`
+```json
+{
+    "Rules": [
+        {
+            "ID": "Standard to Standard-IA transition rule",
+            "Filter": {},
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 60,
+                    "StorageClass": "STANDARD_IA"
+                }
+            ]
+        },
+        {
+            "Expiration": {
+                "Days": 200
+            },
+            "ID": "200 days expiry rule",
+            "Filter": {},
+            "Status": "Enabled"
+        }
+    ]
+}
+```
 
 ### Apply Lifecycle Rules
 
@@ -200,50 +263,14 @@ x-amz-error-code: NoSuchKey
 aws s3api put-bucket-lifecycle-configuration --bucket $bkt_name --lifecycle-configuration file://lifecycle.json
 ```
 
-Output:
+*AWS Console: Lifecycle rules*
 
-```json
-{
-  "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
-}
-```
+![Lifecycle rules](images/08-lifecycle-rules.png)
 
-### Verify Lifecycle Rules
 
-```bash
-aws s3api get-bucket-lifecycle-configuration --bucket $bkt_name
-```
+*AWS Console: Lifecycle configuration*
 
-Output:
-
-```json
-{
-  "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K",
-  "Rules": [
-    {
-      "ID": "Standard to Standard-IA transition rule",
-      "Filter": {},
-      "Status": "Enabled",
-      "Transitions": [
-        {
-          "Days": 60,
-          "StorageClass": "STANDARD_IA"
-        }
-      ]
-    },
-    {
-      "Expiration": {
-        "Days": 200
-      },
-      "ID": "200 days expiry rule",
-      "Filter": {},
-      "Status": "Enabled"
-    }
-  ]
-}
-```
-
----
+![Lifecycle configuration](images/09-lifecycle-config.png)
 
 ## Cleanup Steps
 
@@ -255,7 +282,7 @@ python3 delete_s3_objects.py $bkt_name
 
 Output:
 
-```
+```bash
 Deleting all object versions and delete markers from bucket: bkt-20250830140412
 Deleted 13 objects/versions in this batch
 Deletion of all object versions and delete markers completed.
@@ -283,5 +310,4 @@ aws s3api delete-bucket-website --bucket $bkt_name
 
 ```bash
 aws s3api delete-bucket --bucket $bkt_name
-```
 ```
