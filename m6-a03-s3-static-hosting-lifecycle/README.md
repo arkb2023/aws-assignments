@@ -46,9 +46,6 @@ $ tree
 ├── lifecycle.json
 ├── public-read-policy.json
 ```
-
-### Project Repository File Overview
-
 | Filename | Description |
 |----------|-------------|
 | [`README.md`](README.md) | Documentation outlining the S3 static website setup, bucket policies, lifecycle rules, and access control. Includes AWS CLI commands, screenshots, and cleanup instructions. |
