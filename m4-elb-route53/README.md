@@ -115,19 +115,12 @@ $ tree
 │   └── 24-alb-url-access.png
 ```
 
----
-
-### Project Repository File Overview
-
 | Filename | Description |
 |----------|-------------|
 | [`README.md`](README.md) | Step-by-step guide for deploying a scalable AWS architecture using EC2, Auto Scaling Groups, ALB, and Route 53. Includes CLI commands, screenshots, and cleanup instructions. |
 | [`EC2-Auto-Scaling-Lab.yaml`](EC2-Auto-Scaling-Lab.yaml) | CloudFormation template used to provision the initial EC2 instance and supporting resources. |
 | [`config.sh`](config.sh) | Environment configuration script that defines required variables such as VPC ID, subnet IDs, security group ID, and AMI ID. These values must be customized to match your AWS setup before executing any dependent CLI commands or templates. |
 | [`images/`](images/) | Contains screenshots documenting each step of the implementation and verification process. Filenames are named for clarity and execution order. |
-
-
----
 
 ### Screenshot Files in `images/` Folder
 
