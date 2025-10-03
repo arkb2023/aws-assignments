@@ -9,36 +9,50 @@
 You work for XYZ Corporation. Their application requires a SQL service that can store data which can be retrieved if required. Implement a suitable RDS engine for the same.  
 
 While migrating, you are asked to perform the following tasks:  
-1. Create a MariaDB Engine based RDS Database.
-2. Connect to the DB using the following ways:
-  a. SQL Client for Windows
-  b. Linux based EC2 Instance
+1. Create a MariaDB Engine based RDS Database.  
+2. Connect to the DB using the following ways:  
+  a. SQL Client for Windows  
+  b. Linux based EC2 Instance  
 
 
----
 ### Prequisite
 ```bash
 # Set AWS region
 export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
 ```
+
 ### Project Repository File Overview
 
-| Filename             | Description                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| `README.md`          |  Step-by-step guide for provisioning a MariaDB RDS instance and connecting to it using SQL clients from both Windows and an EC2 Linux instance. Includes AWS CLI commands, screenshots, and cleanup instructions. |
-| `ec2-instance.yaml`  | CloudFormation template to provision an Amazon Linux EC2 instance with MariaDB client |
-| `images/`            | Folder containing screenshots that document key steps and validation        |
+This repository contains all the necessary files to provision a MariaDB RDS instance, connect from Windows and EC2 Linux clients, and document the process with screenshots.
 
+```bash
+$ tree
+.
+├── README.md
+├── ec2-instance.yaml
+└── images
+    ├── 01-mariadb-created.png
+    ├── 02-windows-mariadb-client-connect-auth.png
+    ├── 03-windows-mariadb-client-connect-success.png
+    ├── 04-ec2-linux-instance.png
+    └── 05-mariadb-connected-from-ec2-linux-instance.png
+```
+
+| Filename | Description |
+|----------|-------------|
+| [`README.md`](README.md) | Step-by-step guide for provisioning a MariaDB RDS instance and connecting to it using SQL clients from both Windows and an EC2 Linux instance. Includes AWS CLI commands, screenshots, and cleanup instructions. |
+| [`ec2-instance.yaml`](ec2-instance.yaml) | CloudFormation template to provision an Amazon Linux EC2 instance with MariaDB client |
+| [`images/`](images/) | Folder containing screenshots that document key steps and validation |
 
 ### Screenshot Files in `images/` Folder
 
-| Screenshot Filename                                | Description                                                                 |
-|----------------------------------------------------|-----------------------------------------------------------------------------|
-| `01-mariadb-created.png`                           | Confirmation of successful MariaDB RDS instance creation                    |
-| `02-windows-mariadb-client-connect-auth.png`       | Authentication prompt from Windows MariaDB client                          |
-| `03-windows-mariadb-client-connect-success.png`    | Successful connection to RDS MariaDB from Windows client                           |
-| `04-ec2-linux-instance.png`                        | EC2 instance launched, showing instance details         |
-| `05-mariadb-connected-from-ec2-linux-instance.png` | Terminal view of successful MariaDB connection from EC2 Linux          |
+| Screenshot Filename | Description |
+|---------------------|-------------|
+| [`01-mariadb-created.png`](images/01-mariadb-created.png) | Confirmation of successful MariaDB RDS instance creation |
+| [`02-windows-mariadb-client-connect-auth.png`](images/02-windows-mariadb-client-connect-auth.png) | Authentication prompt from Windows MariaDB client |
+| [`03-windows-mariadb-client-connect-success.png`](images/03-windows-mariadb-client-connect-success.png) | Successful connection to RDS MariaDB from Windows client |
+| [`04-ec2-linux-instance.png`](images/04-ec2-linux-instance.png) | EC2 instance launched, showing instance details |
+| [`05-mariadb-connected-from-ec2-linux-instance.png`](images/05-mariadb-connected-from-ec2-linux-instance.png) | Terminal view of successful MariaDB connection from EC2 Linux |
 
 ### Prerequisities
 
