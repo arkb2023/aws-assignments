@@ -14,16 +14,19 @@ While migrating, you are asked to perform the following tasks:
   a. SQL Client for Windows  
   b. Linux based EC2 Instance  
 
+### Solution Overview
 
-### Prequisite
-```bash
-# Set AWS region
-export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
-```
+To fulfill the requirements, this solution adopts a systematic approach that includes:
 
-### Project Repository File Overview
+- **Provisioning** a managed MariaDB RDS instance in AWS to provide a scalable and secure SQL database service.
+- **Configuring connectivity** for two distinct client environments:
+  - Connecting using the `HeidiSQL` graphical SQL client on Windows.
+  - Accessing the database from a Linux environment using `mariadb-client` on an AWS EC2 instance.
+- **Documenting each step** in detail, including AWS CLI provisioning, connection methods, settings applied, and end-to-end functional verification with annotated screenshots.
 
-This repository contains all the necessary files to provision a MariaDB RDS instance, connect from Windows and EC2 Linux clients, and document the process with screenshots.
+### Project Repository Structure
+
+The repository is organized to support the solution approach by providing detailed documentation of configuration steps using AWS CLIs, along with a collection of screenshots that illustrate the key stages — starting with provisioning the managed MariaDB RDS instance, followed by connecting through the Windows HeidiSQL client, and concluding with provisioning the EC2 instance via a CloudFormation template and accessing the database from it.
 
 ```bash
 $ tree
@@ -56,8 +59,12 @@ $ tree
 
 ### Prerequisities
 
+```bash
+# Set AWS region
+export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
+```
 
-Before running any commands, ensure the required environment variables are defined. These variables customize your AWS setup.
+Before running any commands, ensure the required environment variables are defined. These variables customize local AWS setup.
 ```bash
 # RDS configuration
 MARIADB_INST_ID="m7-mariadb"
