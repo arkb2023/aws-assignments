@@ -61,11 +61,6 @@ $ tree
 | [`05-db-readreplica2-instance-created.png`](./images/05-db-readreplica2-instance-created.png) | Second read replica created in Availability Zone `us-west-2b` |
 | [`06-db-cleanup.png`](./images/06-db-cleanup.png) | Final cleanup step showing deletion of DB instances and cluster |
 
-
-Here is a reviewed and refined version of your Prerequisites section with improved clarity, formatting, and logical flow:
-
-***
-
 ### Prerequisites
 
 Set the AWS region environment variable to ensure all commands execute in the desired region:

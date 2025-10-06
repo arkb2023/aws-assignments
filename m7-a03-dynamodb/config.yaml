@@ -1,0 +1,22 @@
+region: us-west-2
+
+users:
+  user1: Tom
+  user2: Jerry
+
+messages:
+  - from: user1
+    to: user2
+    body: "Hey {to}, are you free?"
+  - from: user2
+    to: user1
+    body: "Yes, {from}. What's up?"
+  - from: user1
+    to: user2
+    body: "Need help with a script."
+  - from: user2
+    to: user1
+    body: "Sure, send it over."
+  - from: user1
+    to: user2
+    body: "Thanks! You're the best, {to}."
