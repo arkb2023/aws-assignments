@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates an SNS topic and subscribes an email for notifications.
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email address to receive notifications
+
+Resources:
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Module8 Notifications
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref NotificationEmail
+      Protocol: email
+      TopicArn: !Ref NotificationTopic
+
+Outputs:
+  SnsTopicArn:
+    Description: ARN of the SNS topic
+    Value: !Ref NotificationTopic
+    Export:
+      Name: Module8-SnsTopicArn
