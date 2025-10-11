@@ -1,0 +1,263 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Provisions an EC2 instances in Web Tier and Application Tier
+
+
+Metadata:
+  Comment: >
+    This EC2 instances are used for module 8 case study. 
+    It provisions two EC2 instances 
+      - a Webserver instance in Web Tier
+      - a Appserver instance in Application Tier
+
+Parameters:
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance.
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+  
+  Env:
+    Description: The type of environment with which to tag your infrastructure resources that support tags.
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: 'The ID of the AMI.'
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  NetworkStackName:
+    Description: The name of the CloudFormation stack you created for network resources.
+    Type: String
+    Default: cf-module8-base-network
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+  SecurityGroupStackName:
+    Description: The name of the CloudFormation stack you created for network resources.
+    Type: String
+    Default: cf-m8-security-group-stack
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+  AppNameTagValue:
+    Description: 'Specify a value for the AppName tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
+    Type: String
+    Default: CF-m8-case-study-1-app
+    MaxLength: 50
+    MinLength: 3
+  
+  WindowsAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base
+
+Mappings:
+  EnvironmentToInstanceType:
+    Dev:
+      InstanceType: t2.nano
+    Test:
+      InstanceType: t2.micro
+    Prod:
+      InstanceType: t2.small
+  
+Resources:
+
+  WindowsTestInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      ImageId: !Ref WindowsAmiId
+      SubnetId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-PrivateSubnetBId
+      SecurityGroupIds:
+        - !ImportValue
+            Fn::Sub: ${SecurityGroupStackName}-AppTierSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-EC2-Windows"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+        - Key: Tier
+          Value: App
+
+
+  AppServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyName
+      SubnetId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-PrivateSubnetAId
+      ImageId: !Ref AmiID
+      InstanceType: !FindInMap [EnvironmentToInstanceType, !Ref Env, InstanceType]
+      SecurityGroupIds:
+        - !ImportValue
+          Fn::Sub: ${SecurityGroupStackName}-AppTierSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-EC2-App"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+  
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+              php: []
+          files:
+            /var/www/html/index.php:
+              content: |
+                <!DOCTYPE html>
+                <html>
+                <body>
+                  <center>
+                    <?php
+                    # Get session token for IMDSv2
+                    $token_url = "http://169.254.169.254/latest/api/token";
+                    $context = stream_context_create([
+                        "http" => [
+                            "method" => "PUT",
+                            "header" => "X-aws-ec2-metadata-token-ttl-seconds: 21600"
+                        ]
+                    ]);
+                    $token = file_get_contents($token_url, false, $context);
+
+                    # Create context with token for metadata requests
+                    $metadata_context = stream_context_create([
+                        "http" => [
+                            "header" => "X-aws-ec2-metadata-token: " . $token
+                        ]
+                    ]);
+
+                    # Get the instance ID from meta-data
+                    $url = "http://169.254.169.254/latest/meta-data/instance-id";
+                    $instance_id = file_get_contents($url, false, $metadata_context);
+                    # Get the instance's availability zone from metadata
+                    $url = "http://169.254.169.254/latest/meta-data/placement/availability-zone";
+                    $zone = file_get_contents($url, false, $metadata_context);
+                    # Get the instance AMI ID
+                    $url = "http://169.254.169.254/latest/meta-data/ami-id";
+                    $ami_id = file_get_contents($url, false, $metadata_context);
+                    ?>
+                    <h2>EC2 Instance ID: <?php echo $instance_id ?></h2>
+                    <h2>Availability Zone: <?php echo $zone ?></h2>
+                    <h2>AMI ID: <?php echo $ami_id ?></h2>
+                  </center>
+                </body>
+                </html>
+              mode: 644
+              owner: apache
+              group: apache
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=1
+              mode: 000400
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init --stack ${AWS::StackName} -resource WebServerInstance --region ${AWS::Region}
+                runas=root
+          services:
+            sysvinit:
+              httpd:
+                enabled: true
+                ensureRunning: true
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: !Ref AmiID
+      InstanceType: !FindInMap [EnvironmentToInstanceType, !Ref Env, InstanceType]
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !ImportValue
+            Fn::Sub: ${NetworkStackName}-PublicSubnetId
+          AssociatePublicIpAddress: true
+          GroupSet:
+            - !ImportValue
+              Fn::Sub: ${SecurityGroupStackName}-WebTierSecurityGroupId
+      # SecurityGroupIds: 
+      #   - !ImportValue
+      #     Fn::Sub: ${SecurityGroupStackName}-WebTierSecurityGroupId
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-EC2-Web"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash -xe
+          # Update aws-cfn-bootstrap to the latest
+          yum install -y aws-cfn-bootstrap
+          # Call cfn-init script to install files and packages
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerInstance --region ${AWS::Region}
+          # Call cfn-signal script to send a signal with exit code
+          /opt/aws/bin/cfn-signal --exit-code $? --stack ${AWS::StackName} --resource WebServerInstance --region ${AWS::Region}
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
+
+
+Outputs:
+
+  WebsiteURL:
+    Description: 'Web Application URL'
+    Value: !Sub http://${WebServerInstance.PublicDnsName}
+
+  WebServerPublicIP:
+    Description: 'Public IP of EC2 Web instance'
+    Value: !GetAtt WebServerInstance.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-WebServerPublicIP"
+
+  WebServerPrivateIP:
+    Description: 'Private IP of EC2 Web instance'
+    Value: !GetAtt WebServerInstance.PrivateIpAddress
+    Export:
+      Name: !Sub "${AWS::StackName}-WebServerPrivateIP"
+
+  AppServerPrivateIP:
+    Description: 'Private IP of EC2 App instance'
+    Value: !GetAtt AppServerInstance.PrivateIpAddress
+
+  WindowsInstancePublicIP:
+    Description: Public IP of Windows EC2 instance
+    Value: !GetAtt WindowsTestInstance.PublicIp
+    Export:
+      Name: !Sub "${AWS::StackName}-WindowsInstancePublicIP"

@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Provisions an RDS MySQL instance in the DB Tier, accessible only from the Application Tier private subnet.
+
+Parameters:
+  AppNameTagValue:
+    Type: String
+    Default: CF-m8-case-study-1-app
+
+  Env:
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+  DBUsername:
+    Type: String
+    Default: admin
+    NoEcho: true
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Must contain only alphanumeric characters.
+
+  DBInstanceClass:
+    Type: String
+    Default: db.t3.micro
+
+  DBAllocatedStorage:
+    Type: Number
+    Default: 20
+
+  NetworkStackName:
+    Type: String
+    Default: cf-module8-base-network
+
+  SecurityGroupStackName:
+    Type: String
+    Default: m8-cf-Dev-security-groups
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS DB tier
+      SubnetIds:
+        - !ImportValue
+            Fn::Sub: ${NetworkStackName}-PrivateSubnetAId
+        - !ImportValue
+            Fn::Sub: ${NetworkStackName}-PrivateSubnetBId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-db-subnet-group"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+        - Key: Tier
+          Value: DB
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub "${AppNameTagValue}-${Env}-rds"
+      Engine: mysql
+      EngineVersion: "8.0.43"
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: !Ref DBAllocatedStorage
+      VPCSecurityGroups:
+        - !ImportValue
+          Fn::Sub: ${SecurityGroupStackName}-DatabaseTierSecurityGroupId
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      MultiAZ: false
+      PubliclyAccessible: false
+      StorageType: gp2
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-rds"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+        - Key: Tier
+          Value: DB
+
+Outputs:
+  RDSInstanceEndpoint:
+    Description: RDS MySQL endpoint
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSInstanceEndpoint"
+
+  RDSInstancePort:
+    Description: RDS MySQL port
+    Value: !GetAtt RDSInstance.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSInstancePort"

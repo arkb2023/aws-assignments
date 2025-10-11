@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Provisions Route 53 hosted zone.
+
+Parameters:
+  AppNameTagValue:
+    Description: 'Specify a value for the AppName tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
+    Type: String
+    Default: CF-m8-case-study-1-app
+    MaxLength: 50
+    MinLength: 3
+
+  Env:
+    Description: The type of environment with which to tag your infrastructure resources that support tags.
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+  HostedZoneDescription:
+    Description: Please specify a description for your hosted zone.
+    Type: String
+    Default: Hosted zone to Module8
+    MaxLength: 50
+    MinLength: 3
+
+  HostedZoneName:
+    Description: Please specify a name for your hosted zone.
+    Type: String
+    Default: module8-domain.com
+    MaxLength: 1024
+    MinLength: 1
+
+  NetworkStackName:
+    Description: The name of the CloudFormation stack you created for network resources.
+    Type: String
+    Default: cf-module8-base-network
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+
+  EC2InstanceStackName:
+    Description: The name of the CloudFormation stack you created for EC2 instances.
+    Type: String
+    Default: cf-module8-ec2
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      HostedZoneConfig:
+        Comment: !Ref 'HostedZoneDescription'
+      HostedZoneTags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-HostedZone"
+        - Key: AppName
+          Value: !Ref AppNameTagValue
+        - Key: Env
+          Value: !Ref Env
+      Name: !Ref 'HostedZoneName'
+      VPCs:
+        - VPCId: !ImportValue
+            Fn::Sub: ${NetworkStackName}-VpcId
+          VPCRegion: !Ref 'AWS::Region'
+
+  WebServerRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: web.module8-domain.com
+      Type: A
+      TTL: 300
+      ResourceRecords:
+        - !ImportValue 
+            Fn::Sub: ${EC2InstanceStackName}-WebServerPrivateIP
+
+Outputs:
+  HostedZoneId:
+    Value: !Ref 'HostedZone'
+    Export:
+      Name: !Sub '${AWS::StackName}-HostedZoneId'
+
+  HostedZoneName:
+    Value: !Ref 'HostedZoneName'
+    Export:
+      Name: !Sub '${AWS::StackName}-HostedZoneName'
