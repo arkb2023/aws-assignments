@@ -22,3 +22,7 @@ NETWORK_STACK_NAME="${STK_PREFIX}-${ENV}-network"
 SG_STACK_NAME="${STK_PREFIX}-${ENV}-security-groups"
 EC2_STACK_NAME="${STK_PREFIX}-${ENV}-ec2"
 DB_STACK_NAME="${STK_PREFIX}-${ENV}-db"
+
+HOSTED_ZONE_DOMAIN=module8-domain.com
+DB_USER="admin"
+DB_PASSWORD="StrongPass123"

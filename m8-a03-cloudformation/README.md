@@ -3,10 +3,6 @@
 ![Verified via Console](https://img.shields.io/badge/Verified-AWS%20Console-yellow?logo=amazon-aws)
 ![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
 
-Here’s your completed assignment documentation, Amit — tailored to the optimized SNS notification setup you implemented. I’ve filled in all the TBDs with clear, reviewer-friendly descriptions.
-
----
-
 ## Module 8: CloudFormation
 
 ### Problem Statement

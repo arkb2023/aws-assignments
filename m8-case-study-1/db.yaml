@@ -67,6 +67,7 @@ Resources:
 
   RDSInstance:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
     Properties:
       DBInstanceIdentifier: !Sub "${AppNameTagValue}-${Env}-rds"
       Engine: mysql
@@ -92,7 +93,7 @@ Resources:
           Value: !Ref Env
         - Key: Tier
           Value: DB
-
+    
 Outputs:
   RDSInstanceEndpoint:
     Description: RDS MySQL endpoint

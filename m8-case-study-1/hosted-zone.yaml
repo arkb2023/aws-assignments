@@ -3,6 +3,13 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Provisions Route 53 hosted zone.
 
 Parameters:
+
+  RecordSetType:
+    Type: String
+    Default: A
+    AllowedValues:
+      - A
+      - CNAME
   AppNameTagValue:
     Description: 'Specify a value for the AppName tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
     Type: String
@@ -72,9 +79,10 @@ Resources:
   WebServerRecordSet:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: !Ref HostedZoneName
+      #HostedZoneName: !Ref HostedZoneName
+      HostedZoneId: !Ref HostedZone
       Name: web.module8-domain.com
-      Type: A
+      Type: !Ref RecordSetType
       TTL: 300
       ResourceRecords:
         - !ImportValue 
@@ -82,6 +90,7 @@ Resources:
 
 Outputs:
   HostedZoneId:
+    Description: ID of the private Route 53 hosted zone
     Value: !Ref 'HostedZone'
     Export:
       Name: !Sub '${AWS::StackName}-HostedZoneId'
@@ -90,3 +99,7 @@ Outputs:
     Value: !Ref 'HostedZoneName'
     Export:
       Name: !Sub '${AWS::StackName}-HostedZoneName'
+
+  WebServerDNSName:
+    Description: Internal DNS name for Web Server
+    Value: web.module8-domain.com

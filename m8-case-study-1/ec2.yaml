@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >
-  Provisions an EC2 instances in Web Tier and Application Tier
+  Provisions EC2 instances in Web Tier and Application Tier
 
 
 Metadata:
@@ -55,10 +55,6 @@ Parameters:
     MaxLength: 50
     MinLength: 3
   
-  WindowsAmiId:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base
-
 Mappings:
   EnvironmentToInstanceType:
     Dev:
@@ -69,29 +65,6 @@ Mappings:
       InstanceType: t2.small
   
 Resources:
-
-  WindowsTestInstance:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t2.micro
-      KeyName: !Ref KeyName
-      ImageId: !Ref WindowsAmiId
-      SubnetId: !ImportValue
-        Fn::Sub: ${NetworkStackName}-PrivateSubnetBId
-      SecurityGroupIds:
-        - !ImportValue
-            Fn::Sub: ${SecurityGroupStackName}-AppTierSecurityGroupId
-      Tags:
-        - Key: Name
-          Value: !Sub "${AppNameTagValue}-${Env}-EC2-Windows"
-        - Key: AppName
-          Value: !Ref AppNameTagValue
-        - Key: Env
-          Value: !Ref Env
-        - Key: Tier
-          Value: App
-
-
   AppServerInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -255,9 +228,3 @@ Outputs:
   AppServerPrivateIP:
     Description: 'Private IP of EC2 App instance'
     Value: !GetAtt AppServerInstance.PrivateIpAddress
-
-  WindowsInstancePublicIP:
-    Description: Public IP of Windows EC2 instance
-    Value: !GetAtt WindowsTestInstance.PublicIp
-    Export:
-      Name: !Sub "${AWS::StackName}-WindowsInstancePublicIP"
