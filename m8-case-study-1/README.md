@@ -16,11 +16,11 @@ code.
 
 ### Solution Overview
 
-To fulfill the requirements, this solution adopts a modular, multi-tier infrastructure deployment using AWS CloudFormation. The solution includes provisioning of networking, security groups, EC2 instances, Route 53 hosted zone, and an RDS database. All resources were tagged, parameterized, and validated across stacks.
+To fulfill the requirements, this solution adopts a modular, multi-tier infrastructure deployment using `AWS CloudFormation`. The solution includes provisioning of `networking` `security groups` `EC2 instances` `Route 53 hosted zone`, and an `RDS database`. All resources were tagged, parameterized, and validated across stacks.
 
 ### Project Repository Structure
 
-The repository is organized to support the solution approach by providing detailed documentation of configuration steps using AWS CloudFormation templates, along with a collection of screenshots that illustrate the key stages — from stack creation to validation and final stack cleanup.
+The repository is organized to support the solution approach by providing detailed documentation of configuration steps using `AWS CloudFormation templates` along with a collection of screenshots that illustrate the key stages — from stack creation to validation and final stack cleanup.
 
 ```bash
 $ tree
@@ -72,8 +72,8 @@ $ tree
 │   ├── xx-web-server-ssh-acccess-from-internet.png
 │   ├── yy-access-webserver-via-hosted-zene-using-curl.png
 │   └── zz-webbrowser-access-to-website-from-internet.png
+│   └── zz-db-stack-deletion-skipped-due-to-retain-policy.png
 ├── security-groups.yaml
-├── teardown-stacks.sh
 └── vpc.yaml
 ```
 
@@ -85,7 +85,6 @@ $ tree
 | [`env.sh`](env.sh) | Environment variable definitions used across deployment scripts |
 | [`hosted-zone.yaml`](hosted-zone.yaml) | Template for creating a private Route 53 hosted zone and internal DNS records |
 | [`security-groups.yaml`](security-groups.yaml) | Template for defining security groups for each tier |
-| [`teardown-stacks.sh`](teardown-stacks.sh) | Script to delete all stacks in reverse dependency order |
 | [`vpc.yaml`](vpc.yaml) | Template for provisioning the VPC, subnets, route tables, IGW, and NAT gateway |
 
 ### Screenshot Files in `images/` Folder
@@ -129,7 +128,7 @@ $ tree
 | [xx-db-access-from-app-server.png](images/xx-db-access-from-app-server.png) | MySQL access to RDS from App Tier |
 | [yy-access-webserver-via-hosted-zene-using-curl.png](images/yy-access-webserver-via-hosted-zene-using-curl.png) | Internal DNS resolution using curl |
 | [zz-webbrowser-access-to-website-from-internet.png](images/zz-webbrowser-access-to-website-from-internet.png) | Public access to Web Tier via browser |
-
+| [zz-db-stack-deletion-skipped-due-to-retain-policy.png](images/zz-db-stack-deletion-skipped-due-to-retain-policy.png) | CloudFormation stack deletion event showing `DELETE_SKIPPED` for the RDS DB instance due to `DeletionPolicy: Retain`, confirming the instance was preserved as expected |
 ---
 
 ## Prerequisites
@@ -144,9 +143,9 @@ export AWS_DEFAULT_REGION=us-west-2 # Oregon, for sandbox/testing
 Override the the defaults defined in [`env.sh`](env.sh).
 
 ```bash
-$ cat env.sh
+cat env.sh
 ```
-# Defaults
+**Defaults**
 ```bash
 # Core naming prefix
 STK_PREFIX="m8-cf"
@@ -498,12 +497,63 @@ curl -i http://web.module8-domain.com
 
 ![Route 53 DNS resolution and HTTP response](images/yy-access-webserver-via-hosted-zene-using-curl.png)
 
-
 ---
 
+**Verification of RDS Instance Retention on Stack Deletion**: *(`DeletionPolicy: Retain` applied to the RDS resource)*
 
-### Cleanup <<TBD>>
+To validate the requirement — *“Make sure when the development team deletes the stack, RDS DB instances should not be deleted”* — a controlled stack deletion was initiated using the following commands:
 
-**Preserve RDS on Stack Deletion** << TBD >>
-  - Set `DeletionPolicy: Retain` for the RDS resource.
+```bash
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-db"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-db"
+```
 
+The deletion process failed as expected due to the `DeletionPolicy: Retain` set on the `AWS::RDS::DBInstance` resource. In the CloudFormation console, the `RDSInstance` resource showed a `DELETE_SKIPPED` status, indicating that it was intentionally preserved. As a result, the deletion of the `DBSubnetGroup` failed because it remained in use by the retained database instance.  
+
+![`zz-db-stack-deletion-skipped-due-to-retain-policy.png`](images/zz-db-stack-deletion-skipped-due-to-retain-policy.png)  
+
+This behavior confirms that the RDS instance was successfully retained, and the stack deletion was blocked to prevent the removal of dependent resources — thereby meeting the requirement.
+
+---
+### Cleanup
+#### **Delete the RDS Resources**
+```bash
+aws rds delete-db-instance \
+  --db-instance-identifier "cf-m8-case-study-1-app-dev-rds" \
+  --skip-final-snapshot
+
+aws rds wait db-instance-deleted \
+  --db-instance-identifier "cf-m8-case-study-1-app-dev-rds"
+
+aws rds delete-db-subnet-group \
+  --db-subnet-group-name "m8-cf-dev-db-dbsubnetgroup-lxwxa7fs0vej"
+
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-db"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-db"
+
+```
+
+#### **Delete the Hosted Zone Stack**
+```bash
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-hosted-zone"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-hosted-zone"
+```
+
+#### **Delete the EC2 Stack**
+```bash
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-ec2"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-ec2"
+```
+
+#### **Delete the Security Groups Stack**
+```bash
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-security-groups"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-security-groups"
+```
+
+#### **Delete the Network Stack**
+```bash
+aws cloudformation delete-stack --stack-name "${STK_PREFIX}-${ENV}-network"
+aws cloudformation wait stack-delete-complete --stack-name "${STK_PREFIX}-${ENV}-network"
+```
+---
