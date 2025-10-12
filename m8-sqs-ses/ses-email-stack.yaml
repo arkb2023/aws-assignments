@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SES Email Verification
+
+Parameters:
+  EmailAddress:
+    Type: String
+    Description: Email address to verify in SES
+
+Resources:
+  EmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref EmailAddress
+
+Outputs:
+  VerifiedEmail:
+    Description: Email address submitted for verification
+    Value: !Ref EmailAddress
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: SES Configuration
+        Parameters:
+          - EmailAddress
+    ParameterLabels:
+      EmailAddress:
+        default: Email to Verify

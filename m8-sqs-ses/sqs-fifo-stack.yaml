@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: FIFO SQS Queue provisioning
+
+Parameters:
+  QueueName:
+    Type: String
+    Default: fifo-queue.fifo
+    Description: Must end with .fifo
+
+Resources:
+  FifoQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      MessageRetentionPeriod: 86400  # 1 day
+
+Outputs:
+  QueueURL:
+    Description: URL of the FIFO SQS Queue
+    Value: !Ref FifoQueue
+  QueueArn:
+    Description: ARN of the FIFO SQS Queue
+    Value: !GetAtt FifoQueue.Arn
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Queue Configuration
+        Parameters:
+          - QueueName
+    ParameterLabels:
+      QueueName:
+        default: FIFO Queue Name
