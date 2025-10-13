@@ -3,7 +3,7 @@
 ![Verified via Console](https://img.shields.io/badge/Verified-AWS%20Console-yellow?logo=amazon-aws)
 ![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
 
-## Module 8: CloudFormation
+## Module 8: CloudFormation - SNS
 
 ### Problem Statement
 You work for XYZ Corporation. Your team is asked to deploy similar architecture multiple times for testing, development, and production purposes. Implement CloudFormation for the tasks assigned to you below.
