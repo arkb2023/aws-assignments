@@ -1,4 +1,4 @@
-## Module 8: Case Study 1 - Multi-Tier-Architecture
+## Module 8: Case Study 1 - Multi-Tier-Architecture wtih CloudFormation
 
 ### Problem Statement
 You work for XYZ Corporation. Your corporation wants to launch a new web-based application. The development team has prepared the code but it is not tested yet. The development team needs the system admins to build a web server to test the code but the system admins are not available.  
