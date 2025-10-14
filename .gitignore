@@ -11,8 +11,11 @@ __pycache__/
 credentials
 **/*secret*
 
-# Ignore OS junk
+# OS and editor artifacts
 .DS_Store
+*.swp
+.idea/
+.vscode/
 Thumbs.db
 
 # my Notes
@@ -20,3 +23,12 @@ Thumbs.db
 
 # WSL Zone.Identifier files
 *Zone.Identifier*
+
+# Terraform state and plan files
+*.tfstate
+*.tfstate.backup
+tfplan
+
+# Local test artifacts
+lambda/terraform.tfstate
+
