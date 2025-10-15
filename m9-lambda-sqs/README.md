@@ -1,9 +1,9 @@
 ![Provisioned via Terraform CLI](https://img.shields.io/badge/Provisioned-Terraform%20CLI-blue?logo=terraform)
 ![Executed from Bash Prompt](https://img.shields.io/badge/Executed-Bash%20Prompt-green?logo=gnu-bash)
-![Validated in AWS Console](https://img.shields.io/badge/Validated-AWS%20Console-yellow?logo=amazon-aws)
-![Lifecycle: Cleaned Up](https://img.shields.io/badge/Lifecycle-Cleaned%20Up%20Post%20Validation-brightgreen)
+![Verified via AWS Console](https://img.shields.io/badge/Verified-AWS%20Console-yellow?logo=amazon-aws)
+![Status: Completed](https://img.shields.io/badge/Status-Completed-brightgreen)
 
-## Module 8: Lambda
+## Module 9: Lambda & SQS
 
 You work for XYZ Corporation. Your corporation wants to launch a new web-based application and they do not want their servers to be running all the time. It should also be managed by AWS. Implement suitable solutions.  
 Tasks To Be Performed:  
