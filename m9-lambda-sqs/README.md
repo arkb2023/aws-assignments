@@ -66,7 +66,11 @@ The repository is organized into modular components for clarity and reusability:
 └── variables.tf
 
 ```
-
+### Prerequisites
+```bash
+# Create lambda handler code pip package
+zip function.zip lambda_function.py
+```
 ### Initialize Terraform project and Provision infrastructure
 ```bash
 # Initialize the Terraform working directory
@@ -94,12 +98,12 @@ terraform output
   | Output Name               | Description                                                                 |
   |---------------------------|-----------------------------------------------------------------------------|
   | `lambda_function_arn`     | ARN of the deployed Lambda function |
-| `Lambda_function_name`    | Logical name of the Lambda function                 |
-| `Lambda_role_policy_name` | Name of the inline IAM policy attached to the Lambda execution role         |
-| `role_arn`                | ARN of the IAM role assumed by Lambda                                  |
-| `role_name`               | Name of the IAM role                                                |
-| `sqs_queue_name`          | Name of the SQS queue                                               |
-| `sqs_queue_url`           | URL used to send messages to the SQS queue via AWS CLI |
+  | `Lambda_function_name`    | Logical name of the Lambda function                 |
+  | `Lambda_role_policy_name` | Name of the inline IAM policy attached to the Lambda execution role         |
+  | `role_arn`                | ARN of the IAM role assumed by Lambda                                  |
+  | `role_name`               | Name of the IAM role                                                |
+  | `sqs_queue_name`          | Name of the SQS queue                                               |
+  | `sqs_queue_url`           | URL used to send messages to the SQS queue via AWS CLI |
 
 ---
 
