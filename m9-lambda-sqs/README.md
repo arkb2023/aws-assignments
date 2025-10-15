@@ -68,7 +68,8 @@ The repository is organized into modular components for clarity and reusability:
 ```
 ### Prerequisites
 ```bash
-# Create lambda handler code pip package
+# Create lambda handler code zip package
+cd lambda/
 zip function.zip lambda_function.py
 ```
 ### Initialize Terraform project and Provision infrastructure
