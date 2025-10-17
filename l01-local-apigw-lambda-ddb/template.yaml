@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple SAM template for a Lambda function.
+
+Globals:
+  Function:
+    Timeout: 10
+
+    # SAM injects environment variables defined under 
+    # Globals.Function.Environment.Variables into the 
+    # execution environment of Lambda function, 
+    # accessible via standard environment variable methods
+    Environment:
+      Variables:
+        AWS_DEFAULT_REGION: us-west-2
+        USERS_TABLE: !Ref MyTable
+        DYNAMODB_ENDPOINT_URL: http://host.docker.internal:8000
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  MyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda.lambda_handler
+      Runtime: python3.12
+      CodeUri: ./src
+      Events:
+        HelloWorldApi:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: get
