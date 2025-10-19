@@ -38,8 +38,38 @@ Resources:
       Runtime: python3.12
       CodeUri: ./src
       Events:
-        HelloWorldApi:
+        GetUsersEvent:
           Type: Api
           Properties:
             Path: /users
             Method: get
+            RestApiId: !Ref RestAPI
+        PutUserEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
+            RestApiId: !Ref RestAPI
+        UpdateUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{userid}
+            Method: put
+            RestApiId: !Ref RestAPI
+        GetUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{userid}
+            Method: get
+            RestApiId: !Ref RestAPI
+        DeleteUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{userid}
+            Method: delete
+            RestApiId: !Ref RestAPI
+
+  RestAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
