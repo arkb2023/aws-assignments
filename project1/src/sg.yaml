@@ -1,0 +1,130 @@
+# Imports
+# from NetworkStackName import VpcId
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Provisions an Security groups for the Web Tier and Database Tier
+
+Metadata:
+  Comment: >
+    This security groups are used for project1. 
+    It provisions an Security groups for the Web Tierand Database Tier
+    Web Tier Security Group Allow
+      HTTP (port 80) from anywhere (for web access).
+      SSH (port 22) from anywhere (for remote access).
+    Database Tier Security Group Allow
+      MySQL (port 3306) only from the Web Tier.
+
+Parameters:
+  AppNameTagValue:
+    Description: 'Specify a value for the AppName tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
+    Type: String
+    Default: project1
+    MaxLength: 50
+    MinLength: 3
+
+  Env:
+    Description: The type of environment with which to tag your infrastructure resources that support tags.
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+  NetworkStackName:
+    Description: The name of the CloudFormation stack you created for network resources.
+    Type: String
+    Default: sg
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+
+Conditions:
+  IsProduction: !Equals
+    - !Ref Env
+    - Prod
+
+Resources:
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the load balancer.
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-web"
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
+
+  # Web Tier Security Group Allow
+  #   HTTP (port 80) from anywhere (for web access).
+  #   SSH (port 22) from anywhere (for remote access).
+  WebTierSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the load balancer.
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - FromPort: 80
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref 'LoadBalancerSecurityGroup'
+          ToPort: 80          
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-web"
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
+
+  # Database Tier Security Group Allow
+  #   MySQL (port 3306) only from the Web Tier.
+  DatabaseTierSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for database instance.
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref 'WebTierSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppNameTagValue}-${Env}-db"
+
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
+
+
+Outputs:
+  WebTierSecurityGroupId:
+    Value: !Ref 'WebTierSecurityGroup'
+    Export:
+      Name: !Sub '${AWS::StackName}-WebTierSecurityGroupId'
+
+  DatabaseTierSecurityGroupId:
+    Value: !Ref 'DatabaseTierSecurityGroup'
+    Export:
+      Name: !Sub '${AWS::StackName}-DatabaseTierSecurityGroupId'
+
+  LoadBalancerSecurityGroupId:
+    Value: !Ref 'LoadBalancerSecurityGroup'
+    Export:
+      Name: !Sub '${AWS::StackName}-LoadBalancerSecurityGroupId'

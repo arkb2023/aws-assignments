@@ -1,0 +1,34 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Provision S3 bucket to store the PHP app code
+
+Parameters:
+  Env:
+    Description: The type of environment with which to tag your infrastructure resources that support tags.
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+Resources:
+  AppS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      #BucketName: !Sub "${AWS::StackName}-${Env}-php-app-bucket"
+      BucketName: !Sub "${AWS::StackName}-php-app-bucket"
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-php-app-bucket"
+
+Outputs:
+  PhpAppBucketName:
+    Value: !Ref AppS3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-PhpAppBucketName"
+
+

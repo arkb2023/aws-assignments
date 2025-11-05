@@ -1,0 +1,349 @@
+# Imports:
+# NetworkStackName - VpcId, PublicSubnetId, PrivateSubnetId
+# SecurityGroupStackName - WebTierSecurityGroupId, LoadBalancerSecurityGroupId
+# S3BucketStackName - PhpAppBucketName
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Sample template describing an example application deployment.
+
+Parameters:
+  AppNameTagValue:
+    Description: 'Specify a value for the AppName tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
+    Type: String
+    Default: project1
+    MaxLength: 50
+    MinLength: 3
+
+  Env:
+    Description: The type of environment with which to tag your infrastructure resources that support tags.
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Default: Dev
+
+  InstanceType:
+    Description: Amazon EC2 instance type to use for your instances.
+    Type: String
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+    Default: t2.micro
+
+  LatestAmiId:
+    Description: The ID of the region-specific Amazon Machine Image to use.
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  NameTagValue:
+    Description: 'Specify a value for the Name tag, that will be applied to your infrastructure resources that support tags; minimum length: 3, maximum: 50.'
+    Type: String
+    Default: AWS CloudFormation Workshop
+    MaxLength: 50
+    MinLength: 3
+
+  NetworkStackName:
+    Description: The name of the CloudFormation stack you created for network resources.
+    Type: String
+    Default: network
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+  # S3BucketStackName:
+  #   Description: The name of the CloudFormation stack you created for s3 resources.
+  #   Type: String
+  #   Default: s3bucket
+  #   AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+  #   MaxLength: 128
+  #   MinLength: 1
+
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket containing php-web-app.zip
+   
+  PageTextContent:
+    Description: The sample text to show in the HTML page.
+    Type: String
+    AllowedValues:
+      - Hello world!
+    Default: Hello world!
+
+  SecurityGroupStackName:
+    Description: The name of the CloudFormation stack created for security group resources.
+    Type: String
+    Default: security-group
+    AllowedPattern: ^[a-zA-Z]{1}[a-zA-Z0-9-]*$
+    MaxLength: 128
+    MinLength: 1
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair for SSH access
+
+  RDSInstanceEndpoint:
+    Type: String
+    Description: RDS endpoint for app
+
+Resources:
+  AutoScalingGroup:
+    CreationPolicy:
+      ResourceSignal:
+        Count: 2
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 2
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: 2
+      LaunchTemplate:
+        LaunchTemplateId: !Ref 'LaunchTemplate'
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MaxSize: 3
+      MinSize: 2
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Ref 'NameTagValue'
+        - Key: AppName
+          PropagateAtLaunch: true
+          Value: !Ref 'AppNameTagValue'
+        - Key: Env
+          PropagateAtLaunch: true
+          Value: !Ref 'Env'
+      TargetGroupARNs:
+        - !Ref 'TargetGroup'
+      VPCZoneIdentifier:
+        - !ImportValue
+          Fn::Sub: ${NetworkStackName}-PublicSubnetId
+        - !ImportValue
+          Fn::Sub: ${NetworkStackName}-PublicSubnetBId
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Order: 1
+          TargetGroupArn: !Ref 'TargetGroup'
+          Type: forward
+      LoadBalancerArn: !Ref 'LoadBalancer'
+      Port: 80
+      Protocol: HTTP
+
+  EC2S3ReadRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: S3ReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [ !Ref EC2S3ReadRole ]
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          install:
+            - install_cfn_hup
+            - install_packages
+            - configure
+        configure:
+          files:
+            /var/www/html/index.html:
+              content: !Sub |
+                ${PageTextContent}
+              group: root
+              mode: "000644"
+              owner: root
+        install_cfn_hup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                interval=2
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              group: root
+              mode: "000400"
+              owner: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.LaunchTemplate.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchTemplate --configsets install --region ${AWS::Region}
+              group: root
+              mode: "000400"
+              owner: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+        install_packages:
+          packages:
+            yum:
+              httpd: []
+          services:
+            sysvinit:
+              httpd:
+                enabled: true
+                ensureRunning: true
+    Properties:
+      LaunchTemplateData:
+        KeyName: !Ref KeyName
+        ImageId: !Ref 'LatestAmiId'
+        InstanceType: !Ref 'InstanceType'
+        IamInstanceProfile:
+          Name: !Ref EC2InstanceProfile        
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            SubnetId: !ImportValue
+                Fn::Sub: ${NetworkStackName}-PublicSubnetId
+            Groups:
+              - !ImportValue
+                  Fn::Sub: ${SecurityGroupStackName}-WebTierSecurityGroupId
+            AssociatePublicIpAddress: true
+
+        UserData: 
+          Fn::Base64:
+            !Sub |
+                #!/bin/bash
+                yum update -y
+
+                # Enable PHP 8.0 via amazon-linux-extras
+                amazon-linux-extras enable php8.0
+
+                # Clean repo metadata
+                yum clean metadata
+
+                # Install PHP 8.0 and needed modules
+                yum install -y php php-cli php-common php-mysqlnd php-pdo php-gd php-xml php-mbstring httpd unzip
+
+                # Start and enable Apache
+                systemctl start httpd
+                systemctl enable httpd
+
+                # Fetch your app from S3 and deploy to document root
+                aws s3 cp s3://${S3BucketName}/php-web-app.zip /tmp/php-web-app.zip
+
+                # Remove defaults
+                rm -rf /var/www/html/*
+
+                # order matters!
+                unzip -o /tmp/php-web-app.zip -d /var/www/html/
+
+                # Move app files to document root if zip extracted into subdir
+                if [ -d /var/www/html/php-web-app ]; then
+                    mv /var/www/html/php-web-app/* /var/www/html/
+                    rmdir /var/www/html/php-web-app
+                fi
+
+                # Remove default index.html so index.php appears on browser load
+                rm -f /var/www/html/index.html
+
+                # Set proper permissions
+                chown -R apache:apache /var/www/html
+
+                # Set timezone in php.ini for warnings
+                sed -i "s|;date.timezone =|date.timezone = Asia/Kolkata|" /etc/php.ini
+
+                echo "SetEnv RDS_HOSTNAME ${RDSInstanceEndpoint}" > /etc/httpd/conf.d/envvars.conf
+
+                systemctl restart httpd
+
+                # Remove default index.html so index.php appears on browser load
+                rm -f /var/www/html/index.html
+
+                # Echo success marker for troubleshooting
+                echo "PHP $(php -v | head -1) installed and webapp deployed."
+
+                yum update -y aws-cfn-bootstrap
+                /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchTemplate --configsets install --region ${AWS::Region}
+                /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags:
+            - Key: Name
+              Value: !Ref 'NameTagValue'
+            - Key: AppName
+              Value: !Ref 'AppNameTagValue'
+            - Key: Env
+              Value: !Ref 'Env'
+
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      SecurityGroups:
+        - !ImportValue
+          Fn::Sub: ${SecurityGroupStackName}-LoadBalancerSecurityGroupId
+      Subnets:
+        - !ImportValue
+          Fn::Sub: ${NetworkStackName}-PublicSubnetId
+        - !ImportValue
+          Fn::Sub: ${NetworkStackName}-PublicSubnetBId
+
+      Tags:
+        - Key: Name
+          Value: !Ref 'NameTagValue'
+        - Key: AppName
+          Value: !Ref 'AppNameTagValue'
+        - Key: Env
+          Value: !Ref 'Env'
+      Type: application
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      Matcher:
+        HttpCode: 200
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: !Ref 'NameTagValue'
+        - Key: AppName
+          Value: !Ref 'AppNameTagValue'
+        - Key: Env
+          Value: !Ref 'Env'
+      TargetType: instance
+      UnhealthyThresholdCount: 2
+      VpcId: !ImportValue
+        Fn::Sub: ${NetworkStackName}-VpcId
+
+Outputs:
+  AppUrl:
+    Description: URL of the sample app.
+    Value: !Sub 'http://${LoadBalancer.DNSName}'
