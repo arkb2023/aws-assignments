@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation Template for Lambda & SNS resources
+Parameters:
+  LambdaExecutionRole:
+    Description: Instance profile resource ID
+    Type: String
+Resources:
+
+  SNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: project3-sns-Topic
+      TopicName: project3-sns-Topic
+      Subscription:
+        - Endpoint: !GetAtt
+            - LambdaFunction1
+            - Arn
+          Protocol: lambda
+        - Endpoint: !GetAtt
+            - LambdaFunction2
+            - Arn
+          Protocol: lambda  
+
+  LambdaFunction1:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+            message = event['Records'][0]['Sns']['Message']
+            print("From SNS: " + message)
+            return message
+      Description: Project3 SNS VPC endpoint lambda function 1
+      FunctionName: project3-sns-Lambda-1
+      Handler: index.lambda_handler
+      Role: !Ref LambdaExecutionRole
+      Runtime: python3.11
+      Timeout: '3'
+  LambdaPermission1:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn: SNSTopic
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaFunction1
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopic
+  LambdaLogGroup1:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaFunction1}"
+      RetentionInDays: '7'
+  LambdaFunction2:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+            message = event['Records'][0]['Sns']['Message']
+            print("From SNS: " + message)
+            return message
+      Description: Project3 SNS VPC endpoint lambda function 2
+      FunctionName: project3-sns-Lambda-2
+      Handler: index.lambda_handler
+      Role: !Ref LambdaExecutionRole
+      Runtime: python3.11
+      Timeout: '3'
+  LambdaPermission2:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn: SNSTopic
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaFunction2
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopic
+  LambdaLogGroup2:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaFunction2}"
+      RetentionInDays: '7'

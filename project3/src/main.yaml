@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation Template for Project3 Publishing Amazon SNS Messages Privately
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket containing stack templates
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/vpc.yaml
+
+  SGStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/sg.yaml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        #SubnetId: !GetAtt VPCStack.Outputs.SubnetId
+
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/iam.yaml
+      TimeoutInMinutes: 10
+
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/ec2.yaml
+      TimeoutInMinutes: 10
+      Parameters:
+        #VpcId: !GetAtt VPCStack.Outputs.VpcId
+        SecurityGroupId: !GetAtt SGStack.Outputs.SecurityGroupId
+        SubnetId: !GetAtt VPCStack.Outputs.SubnetId
+        EC2InstanceProfile: !GetAtt IAMStack.Outputs.EC2InstanceProfile
+        KeyName: !Ref KeyName
+
+  # SNSStack:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     TemplateURL: https://.../sns.yaml
+  #     Parameters:
+  #       VpcId: !GetAtt VPCStack.Outputs.VpcId
+  #       SubnetIds: !GetAtt VPCStack.Outputs.PublicSubnets
+  #       SecurityGroupIds: !GetAtt SGStack.Outputs.SnsSG
+
+  LAMBDAStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/lambda-sns.yaml
+      Parameters:
+        LambdaExecutionRole: !GetAtt IAMStack.Outputs.LambdaExecutionRole
+  
+  EndpointStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com/endpoint.yaml
+      Parameters:
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        SubnetId: !GetAtt VPCStack.Outputs.SubnetId
+        SecurityGroupId: !GetAtt SGStack.Outputs.SecurityGroupId

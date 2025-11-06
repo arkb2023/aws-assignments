@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation Template for EC2 instance
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: 'The ID of the AMI.'
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  EC2InstanceProfile:
+    Description: Instance profile resource ID
+    Type: String
+
+  SubnetId:
+    Description: The Subnet ID
+    Type: AWS::EC2::Subnet::Id
+
+  SecurityGroupId:
+    Description: The Security Group ID
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  EC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      KeyName: !Ref KeyName
+      InstanceType: t2.micro
+      ImageId: !Ref AmiID
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref SecurityGroupId
+          SubnetId: !Ref SubnetId
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: Project3-EC2Instance

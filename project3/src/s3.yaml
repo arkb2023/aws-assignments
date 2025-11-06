@@ -1,0 +1,22 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Provision S3 bucket for template storage
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-bucket"
+
+Outputs:
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-bucket"
+
+

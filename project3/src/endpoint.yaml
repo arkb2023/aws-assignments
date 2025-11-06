@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create SNS VPC Endpoint
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  SNSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.sns"
+      VpcId: !Ref VpcId
+      SubnetIds:
+        - !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+
+Outputs:
+  SNSEndpointId:
+    Value: !Ref SNSEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-SNSEndpointId"
