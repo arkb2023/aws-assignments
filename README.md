@@ -24,6 +24,7 @@ Welcome! This repository contains multiple AWS assignments. Each assignment resi
 18. [SQS & SES CloudFormation Deployment](m8-sqs-ses/README.md)
 19. [Managed PHP Application with Elastic Beanstalk](m9-eb-php/README.md)
 20. [Serverless Architecture: Lambda & SQS with Terraform](m9-lambda-sqs/README.md)
+21. [Deploying a Multi-Tier Website Using AWS EC2](project1/README.md)
 
 <!-- # AWS Assignments Index
 
